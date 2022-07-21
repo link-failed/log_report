@@ -1,6 +1,7 @@
 import json
 import csv
 import re
+import math
 import matplotlib
 import matplotlib.pyplot as plt
 
@@ -152,7 +153,8 @@ def process_log():
             #          'thread_name': thread_name, 'ts': ts})
 
 
-id_list = []
+bar_num = 40
+ts_list = []
 duration_list = []
 
 
@@ -164,26 +166,40 @@ def get_duration():
         for row in reader:
             if row['execution_time'] != "" and float(row['execution_time']) > 0:
                 duration_list.append(float(row['execution_time']))
-                id_list.append(row['node_name'] + '[' + row['level'] + ']')
+                cut_time_index1 = row['ts'].find(':') + 1
+                cut_time_index2 = row['ts'].find('.') + 3
+                ts_list.append(row['ts'][cut_time_index1:cut_time_index2])
+
+
+def split_list(x_list, y_list):
+    group = math.ceil(len(x_list) / bar_num)
+    x_list_list = []
+    y_list_list = []
+    index1 = 0
+    index2 = bar_num
+    for i in range(group):
+        x_list_list.append(x_list[index1:index2])
+        y_list_list.append(y_list[index1:index2])
+        index1 += bar_num
+        index2 += bar_num
+    return group, x_list_list, y_list_list
 
 
 def duration_plt():
-    fig, ax = plt.subplots()
-    b = ax.barh(range(len(id_list)), duration_list, color='#6699CC')
+    group, x_list_list, y_list_list = split_list(ts_list, duration_list)
+    column = 2
+    row = math.ceil(group / column)  # todo
+    fig, axs = plt.subplots(nrows=row, ncols=column, sharey=True)  # bar_num in one time
+    fig.suptitle('duration')
 
-    # add text label
-    for rect in b:
-        w = rect.get_width()
-        ax.text(w, rect.get_y() + rect.get_height() / 2, '%f' %
-                int(w), ha='left', va='center')
+    i = 0
+    for row in axs:
+        for col in row:
+            col.bar(x_list_list[i], y_list_list[i])
+            i += 1
+            col.tick_params(axis='x', rotation=90)
 
-    ax.set_yticks(range(len(id_list)))
-    ax.set_yticklabels(id_list)
-
-    # plt.xticks(())
-
-    plt.title('duration', loc='center', fontsize='25', fontweight='bold')
-
+    # plt.xticks(rotation=90)
     plt.show()
 
 
@@ -196,9 +212,8 @@ def main():
 if __name__ == "__main__":
     main()
 
-
 # "completed_at": "2022-07-18T00:10:04.442487Z"
-# "started_at": "2022-07-18T00:10:04.440403Z"
+# "started_at": "2022-07-18T00:10:04.4bar_numbar_num3Z"
 # "node_finished_at": "2022-07-18T00:10:05.324930"
 # "node_started_at": "2022-07-18T00:10:04.437969"
 # "ts": "2022-07-18T00:10:05.325107Z"
