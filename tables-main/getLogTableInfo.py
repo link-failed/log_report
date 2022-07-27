@@ -5,6 +5,7 @@ node_name_index = 9
 level_index = 2
 execution_time_index = 1
 start_time_index = 11
+finish_time_index = 8
 pid_index = 4
 
 
@@ -23,13 +24,12 @@ def log_info_for_table():
                 record_dict_list.append({
                     "node_name": row[node_name_index],
                     "level": row[level_index],
-                    "execution_time": row[execution_time_index],
+                    "duration": row[execution_time_index],
                     "start_time": row[start_time_index],
+                    "finish_time": row[finish_time_index],
                     "pid": row[pid_index]
                 })
         return record_dict_list
-        # for i in node_index_list:
-        #     record_dict_list.append(row[i] for row in reader)
 
 
 log_info_for_table()
