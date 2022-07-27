@@ -2,7 +2,6 @@ import json
 import csv
 import re
 import math
-import matplotlib
 import matplotlib.pyplot as plt
 
 
@@ -87,7 +86,7 @@ header = ['code', 'execution_time', 'level', 'msg', 'pid', 'thread_name', 'ts', 
 
 
 def process_log():
-    with open('logs_example/dbt-18.log', 'r') as f, open('res/res1.csv', 'w') as output:
+    with open('../logs_example/dbt-18.log', 'r') as f, open('../res/res1.csv', 'w') as output:
         writer = csv.writer(output)
 
         # add header for the csv output
@@ -140,18 +139,6 @@ def process_log():
                 prev_row = [code, execution_time, level, msg, pid, thread_name, ts]
             writer.writerow(prev_row)
 
-            # writer.writerow(
-            #     {'code': code, 'data': data, 'invocation_id': invocation_id, 'level': level, 'msg': msg, 'pid': pid,
-            #      'thread_name': thread_name, 'ts': ts, 'materialized': materialized, 'node_finished_at': node_finished_at,
-            #      'node_name': node_name, 'node_path': node_path, 'node_started_at': node_started_at,
-            #      'node_status': node_status, 'resource_type': resource_type, 'rows_affected': rows_affected,
-            #      'execution_time': execution_time, 'failures': failures, 'message': message})
-
-            # else:
-            #     writer.writerow(
-            #         {'code': code, 'data': data, 'invocation_id': invocation_id, 'level': level, 'msg': msg, 'pid': pid, \
-            #          'thread_name': thread_name, 'ts': ts})
-
 
 bar_num = 40
 ts_list = []
@@ -161,7 +148,7 @@ duration_list = []
 def get_duration():
     # if duration_time is not null and > 0
     # id format: node_name[level]
-    with open('res/res1.csv', newline='') as f:
+    with open('../res/res1.csv', newline='') as f:
         reader = csv.DictReader(f)
         for row in reader:
             if row['execution_time'] != "" and float(row['execution_time']) > 0:

@@ -3,21 +3,14 @@
   <component name="CsvFileAttributes">
     <option name="attributeMap">
       <map>
-        <entry key="/pg-18.csv">
+        <entry key="/logs_example/pg-18.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />
             </Attribute>
           </value>
         </entry>
-        <entry key="/postgresql-2022-07-15_172235.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/postgresql-2022-07-17_000000.csv">
+        <entry key="/res/res1.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />
