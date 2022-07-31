@@ -83,7 +83,9 @@ def find_message(line):
 header = ['code', 'execution_time', 'level', 'msg', 'pid', 'thread_name', 'ts', 'materialized', \
           'node_finished_at', 'node_name', 'node_path', 'node_started_at', 'node_status', 'resource_type', \
           'rows_affected', 'failures', 'message']
-
+log_directory = "/home/ceci/Desktop/mimic-dbt/logs/dbt.log"
+res_directory = "../res"
+# recognize a new Running with dbt=1.1.1
 
 def process_log():
     with open('../logs_example/dbt-18.log', 'r') as f, open('../res/res1.csv', 'w') as output:
