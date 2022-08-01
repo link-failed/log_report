@@ -87,16 +87,17 @@ log_directory = "/home/ceci/Desktop/mimic-dbt/logs/dbt.log"
 res_directory = "../res"
 # recognize a new Running with dbt=1.1.1
 
+
 def process_log():
-    with open('../logs_example/dbt-18.log', 'r') as f, open('../res/res1.csv', 'w') as output:
+    with open('../logs_example/dbt-30.log', 'r') as f, open('../res/res2.csv', 'w') as output:
         writer = csv.writer(output)
 
         # add header for the csv output
         writer.writerow(header)
 
         for jsonStr in f.readlines():
-            jsonData = json.loads(jsonStr)
-            for k, v in jsonData.items():
+            json_data = json.loads(jsonStr)
+            for k, v in json_data.items():
                 if k == 'code':
                     code = v
                 # elif k == 'data':
@@ -147,17 +148,17 @@ ts_list = []
 duration_list = []
 
 
-def get_duration():
-    # if duration_time is not null and > 0
-    # id format: node_name[level]
-    with open('../res/res1.csv', newline='') as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            if row['execution_time'] != "" and float(row['execution_time']) > 0:
-                duration_list.append(float(row['execution_time']))
-                cut_time_index1 = row['ts'].find(':') + 1
-                cut_time_index2 = row['ts'].find('.') + 3
-                ts_list.append(row['ts'][cut_time_index1:cut_time_index2])
+# def get_duration():
+#     # if duration_time is not null and > 0
+#     # id format: node_name[level]
+#     with open('../res/res1.csv', newline='') as f:
+#         reader = csv.DictReader(f)
+#         for row in reader:
+#             if row['execution_time'] != "" and float(row['execution_time']) > 0:
+#                 duration_list.append(float(row['execution_time']))
+#                 cut_time_index1 = row['ts'].find(':') + 1
+#                 cut_time_index2 = row['ts'].find('.') + 3
+#                 ts_list.append(row['ts'][cut_time_index1:cut_time_index2])
 
 
 def split_list(x_list, y_list):
@@ -194,8 +195,8 @@ def duration_plt():
 
 def main():
     process_log()
-    get_duration()
-    duration_plt()
+    # get_duration()
+    # duration_plt()
 
 
 if __name__ == "__main__":

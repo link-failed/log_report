@@ -1,5 +1,5 @@
 import csv
-
+from os import walk
 
 node_name_index = 9
 level_index = 2
@@ -8,10 +8,31 @@ start_time_index = 11
 finish_time_index = 8
 pid_index = 4
 
+# TODO:
+# 1. generate report for all logs
+#    maintain a json file listing all models and their history duration
+# 2. show only current logs in front-end
+#    find the latest .csv file and parse from the last "running on" flag
+# 3. permission issue (?)
+# path for Mint OS 20: /var/log/postgresql/
 
+
+# find latest log's filename
+def find_latest_log(log_directory):
+    filenames = next(walk(log_directory), (None, None, []))[2]  # [] if no file
+    latest_log = ""
+    for filename in filenames:
+        if filename[-4:] == ".csv" and filename[:9] == "postgres-":
+            if filename > latest_log:
+                latest_log = filename
+    return latest_log
+
+
+# find the latest log's info
 def log_info_for_table():
     record_dict_list = []
-    with open('../res/res1.csv', mode='r') as f:
+    latest_log = find_latest_log(log_directory="var/log/postgres/")
+    with open(latest_log, mode='r') as f:
         reader = csv.reader(f)
         next(reader)
         for row in reader:

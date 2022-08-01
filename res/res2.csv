@@ -1,0 +1,2230 @@
+code,execution_time,level,msg,pid,thread_name,ts,materialized,node_finished_at,node_name,node_path,node_started_at,node_status,resource_type,rows_affected,failures,message
+Q030,,debug,Began compiling node model.mimic.vitals_first_day,64548,Thread-1,2022-07-29T23:00:38.400307Z,table,null,vitals_first_day,firstday/vitals_first_day.sql,2022-07-29T23:00:38.396379,compiling,model,,,
+Q027,,debug,Compiling model.mimic.vitals_first_day,64548,Thread-1,2022-07-29T23:00:38.400840Z
+Q028,,debug,"Writing injected SQL for node ""model.mimic.vitals_first_day""",64548,Thread-1,2022-07-29T23:00:38.402908Z
+Z010,,debug,finished collecting timing info,64548,Thread-1,2022-07-29T23:00:38.403831Z
+Q031,,debug,Began executing node model.mimic.vitals_first_day,64548,Thread-1,2022-07-29T23:00:38.404179Z,table,null,vitals_first_day,firstday/vitals_first_day.sql,null,executing,model,,,
+M012,,debug,"Writing runtime SQL for node ""model.mimic.vitals_first_day""",64548,Thread-1,2022-07-29T23:00:38.418458Z
+E015,,debug,"Using postgres connection ""model.mimic.vitals_first_day""",64548,Thread-1,2022-07-29T23:00:38.420026Z
+E016,,debug,On model.mimic.vitals_first_day: BEGIN,64548,Thread-1,2022-07-29T23:00:38.420816Z
+E037,,debug,"Opening a new connection, currently in state closed",64548,Thread-1,2022-07-29T23:00:38.421266Z
+E017,,debug,SQL status: BEGIN in 0.01 seconds,64548,Thread-1,2022-07-29T23:00:38.429822Z
+E015,,debug,"Using postgres connection ""model.mimic.vitals_first_day""",64548,Thread-1,2022-07-29T23:00:38.430419Z
+E016,,debug,"On model.mimic.vitals_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.vitals_first_day""} */
+
+
+  create  table ""mimic"".""public"".""vitals_first_day__dbt_tmp""
+  as (
+    -- This query pivots the vital signs for the first 24 hours of a patient's stay
+-- Vital signs include heart rate, blood pressure, respiration rate, and temperature
+
+SELECT pvt.subject_id, pvt.hadm_id, pvt.icustay_id
+
+-- Easier names
+, min(case when VitalID = 1 then valuenum ELSE NULL END) AS heartrate_min
+, max(case when VitalID = 1 then valuenum ELSE NULL END) AS heartrate_max
+, avg(case when VitalID = 1 then valuenum ELSE NULL END) AS heartrate_mean
+, min(case when VitalID = 2 then valuenum ELSE NULL END) AS sysbp_min
+, max(case when VitalID = 2 then valuenum ELSE NULL END) AS sysbp_max
+, avg(case when VitalID = 2 then valuenum ELSE NULL END) AS sysbp_mean
+, min(case when VitalID = 3 then valuenum ELSE NULL END) AS diasbp_min
+, max(case when VitalID = 3 then valuenum ELSE NULL END) AS diasbp_max
+, avg(case when VitalID = 3 then valuenum ELSE NULL END) AS diasbp_mean
+, min(case when VitalID = 4 then valuenum ELSE NULL END) AS meanbp_min
+, max(case when VitalID = 4 then valuenum ELSE NULL END) AS meanbp_max
+, avg(case when VitalID = 4 then valuenum ELSE NULL END) AS meanbp_mean
+, min(case when VitalID = 5 then valuenum ELSE NULL END) AS resprate_min
+, max(case when VitalID = 5 then valuenum ELSE NULL END) AS resprate_max
+, avg(case when VitalID = 5 then valuenum ELSE NULL END) AS resprate_mean
+, min(case when VitalID = 6 then valuenum ELSE NULL END) AS tempc_min
+, max(case when VitalID = 6 then valuenum ELSE NULL END) AS tempc_max
+, avg(case when VitalID = 6 then valuenum ELSE NULL END) AS tempc_mean
+, min(case when VitalID = 7 then valuenum ELSE NULL END) AS spo2_min
+, max(case when VitalID = 7 then valuenum ELSE NULL END) AS spo2_max
+, avg(case when VitalID = 7 then valuenum ELSE NULL END) AS spo2_mean
+, min(case when VitalID = 8 then valuenum ELSE NULL END) AS glucose_min
+, max(case when VitalID = 8 then valuenum ELSE NULL END) AS glucose_max
+, avg(case when VitalID = 8 then valuenum ELSE NULL END) AS glucose_mean
+
+FROM  (
+  select ie.subject_id, ie.hadm_id, ie.icustay_id
+  , case
+    when itemid in (211,220045) and valuenum > 0 and valuenum < 300 then 1 -- HeartRate
+    when itemid in (51,442,455,6701,220179,220050) and valuenum > 0 and valuenum < 400 then 2 -- SysBP
+    when itemid in (8368,8440,8441,8555,220180,220051) and valuenum > 0 and valuenum < 300 then 3 -- DiasBP
+    when itemid in (456,52,6702,443,220052,220181,225312) and valuenum > 0 and valuenum < 300 then 4 -- MeanBP
+    when itemid in (615,618,220210,224690) and valuenum > 0 and valuenum < 70 then 5 -- RespRate
+    when itemid in (223761,678) and valuenum > 70 and valuenum < 120  then 6 -- TempF, converted to degC in valuenum call
+    when itemid in (223762,676) and valuenum > 10 and valuenum < 50  then 6 -- TempC
+    when itemid in (646,220277) and valuenum > 0 and valuenum <= 100 then 7 -- SpO2
+    when itemid in (807,811,1529,3745,3744,225664,220621,226537) and valuenum > 0 then 8 -- Glucose
+
+    else null end as vitalid
+      -- convert F to C
+  , case when itemid in (223761,678) then (valuenum-32)/1.8 else valuenum end as valuenum
+
+  from icustays ie
+  left join chartevents ce
+  on ie.icustay_id = ce.icustay_id
+  and ce.charttime between ie.intime and DATETIME_ADD(ie.intime, INTERVAL '1 DAY')
+  and DATETIME_DIFF(ce.charttime, ie.intime, 'SECOND') > 0
+  and DATETIME_DIFF(ce.charttime, ie.intime, 'HOUR') <= 24
+  -- exclude rows marked as error
+  and (ce.error IS NULL or ce.error = 0)
+  where ce.itemid in
+  (
+  -- HEART RATE
+  211, --""Heart Rate""
+  220045, --""Heart Rate""
+
+  -- Systolic/diastolic
+
+  51, --	Arterial BP [Systolic]
+  442, --	Manual BP [Systolic]
+  455, --	NBP [Systolic]
+  6701, --	Arterial BP #2 [Systolic]
+  220179, --	Non Invasive Blood Pressure systolic
+  220050, --	Arterial Blood Pressure systolic
+
+  8368, --	Arterial BP [Diastolic]
+  8440, --	Manual BP [Diastolic]
+  8441, --	NBP [Diastolic]
+  8555, --	Arterial BP #2 [Diastolic]
+  220180, --	Non Invasive Blood Pressure diastolic
+  220051, --	Arterial Blood Pressure diastolic
+
+
+  -- MEAN ARTERIAL PRESSURE
+  456, --""NBP Mean""
+  52, --""Arterial BP Mean""
+  6702, --	Arterial BP Mean #2
+  443, --	Manual BP Mean(calc)
+  220052, --""Arterial Blood Pressure mean""
+  220181, --""Non Invasive Blood Pressure mean""
+  225312, --""ART BP mean""
+
+  -- RESPIRATORY RATE
+  618,--	Respiratory Rate
+  615,--	Resp Rate (Total)
+  220210,--	Respiratory Rate
+  224690, --	Respiratory Rate (Total)
+
+
+  -- SPO2, peripheral
+  646, 220277,
+
+  -- GLUCOSE, both lab and fingerstick
+  807,--	Fingerstick Glucose
+  811,--	Glucose (70-105)
+  1529,--	Glucose
+  3745,--	BloodGlucose
+  3744,--	Blood Glucose
+  225664,--	Glucose finger stick
+  220621,--	Glucose (serum)
+  226537,--	Glucose (whole blood)
+
+  -- TEMPERATURE
+  223762, -- ""Temperature Celsius""
+  676,	-- ""Temperature C""
+  223761, -- ""Temperature Fahrenheit""
+  678 --	""Temperature F""
+
+  )
+) pvt
+group by pvt.subject_id, pvt.hadm_id, pvt.icustay_id
+order by pvt.subject_id, pvt.hadm_id, pvt.icustay_id
+  );",64548,Thread-1,2022-07-29T23:00:38.430749Z
+E017,,debug,SQL status: SELECT 0 in 0.02 seconds,64548,Thread-1,2022-07-29T23:00:38.453064Z
+E015,,debug,"Using postgres connection ""model.mimic.vitals_first_day""",64548,Thread-1,2022-07-29T23:00:38.457731Z
+E016,,debug,"On model.mimic.vitals_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.vitals_first_day""} */
+alter table ""mimic"".""public"".""vitals_first_day"" rename to ""vitals_first_day__dbt_backup""",64548,Thread-1,2022-07-29T23:00:38.457993Z
+E017,,debug,SQL status: ALTER TABLE in 0.0 seconds,64548,Thread-1,2022-07-29T23:00:38.459335Z
+E015,,debug,"Using postgres connection ""model.mimic.vitals_first_day""",64548,Thread-1,2022-07-29T23:00:38.464803Z
+E016,,debug,"On model.mimic.vitals_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.vitals_first_day""} */
+alter table ""mimic"".""public"".""vitals_first_day__dbt_tmp"" rename to ""vitals_first_day""",64548,Thread-1,2022-07-29T23:00:38.465081Z
+E017,,debug,SQL status: ALTER TABLE in 0.0 seconds,64548,Thread-1,2022-07-29T23:00:38.466203Z
+E018,,debug,On model.mimic.vitals_first_day: COMMIT,64548,Thread-1,2022-07-29T23:00:38.470672Z
+E015,,debug,"Using postgres connection ""model.mimic.vitals_first_day""",64548,Thread-1,2022-07-29T23:00:38.470934Z
+E016,,debug,On model.mimic.vitals_first_day: COMMIT,64548,Thread-1,2022-07-29T23:00:38.471168Z
+E017,,debug,SQL status: COMMIT in 0.0 seconds,64548,Thread-1,2022-07-29T23:00:38.472736Z
+E015,,debug,"Using postgres connection ""model.mimic.vitals_first_day""",64548,Thread-1,2022-07-29T23:00:38.475194Z
+E016,,debug,"On model.mimic.vitals_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.vitals_first_day""} */
+drop table if exists ""mimic"".""public"".""vitals_first_day__dbt_backup"" cascade",64548,Thread-1,2022-07-29T23:00:38.475446Z
+E017,,debug,SQL status: DROP TABLE in 0.0 seconds,64548,Thread-1,2022-07-29T23:00:38.477878Z
+Z010,,debug,finished collecting timing info,64548,Thread-1,2022-07-29T23:00:38.482419Z
+E010,,debug,On model.mimic.vitals_first_day: Close,64548,Thread-1,2022-07-29T23:00:38.482847Z
+Z040,,debug,"Sending event: {'category': 'dbt', 'action': 'run_model', 'label': '1fc17614-c4ac-4308-83ff-170fd628080c', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x7f184c57cdc0>]}",64548,Thread-1,2022-07-29T23:00:38.483946Z
+Q012,0,info,8 of 10 OK created table model public.vitals_first_day ......................... [[32mSELECT 0[0m in 0.09s],64548,Thread-1,2022-07-29T23:00:38.484745Z,table,null,vitals_first_day,firstday/vitals_first_day.sql,2022-07-29T23:00:38.396379,compiling,model,,,
+Q024,0.08514904975891113,debug,Finished running node model.mimic.vitals_first_day,64548,Thread-1,2022-07-29T23:00:38.485852Z,table,2022-07-29T23:00:38.485566,vitals_first_day,firstday/vitals_first_day.sql,2022-07-29T23:00:38.396379,success,model,,,
+Q023,,debug,Began running node model.mimic.weight_first_day,64548,Thread-1,2022-07-29T23:00:38.486616Z,table,null,weight_first_day,firstday/weight_first_day.sql,2022-07-29T23:00:38.486521,started,model,,,
+Q033,,info,9 of 10 START table model public.weight_first_day .............................. [RUN],64548,Thread-1,2022-07-29T23:00:38.487752Z,table,null,weight_first_day,firstday/weight_first_day.sql,2022-07-29T23:00:38.486521,started,model,,,
+E005,,debug,"Acquiring new postgres connection ""model.mimic.weight_first_day""",64548,Thread-1,2022-07-29T23:00:38.488999Z
+Q030,,debug,Began compiling node model.mimic.weight_first_day,64548,Thread-1,2022-07-29T23:00:38.489311Z,table,null,weight_first_day,firstday/weight_first_day.sql,2022-07-29T23:00:38.486521,compiling,model,,,
+Q027,,debug,Compiling model.mimic.weight_first_day,64548,Thread-1,2022-07-29T23:00:38.489515Z
+Q028,,debug,"Writing injected SQL for node ""model.mimic.weight_first_day""",64548,Thread-1,2022-07-29T23:00:38.492422Z
+Z010,,debug,finished collecting timing info,64548,Thread-1,2022-07-29T23:00:38.493580Z
+Q031,,debug,Began executing node model.mimic.weight_first_day,64548,Thread-1,2022-07-29T23:00:38.494112Z,table,null,weight_first_day,firstday/weight_first_day.sql,null,executing,model,,,
+M012,,debug,"Writing runtime SQL for node ""model.mimic.weight_first_day""",64548,Thread-1,2022-07-29T23:00:38.507120Z
+E015,,debug,"Using postgres connection ""model.mimic.weight_first_day""",64548,Thread-1,2022-07-29T23:00:38.508686Z
+E016,,debug,On model.mimic.weight_first_day: BEGIN,64548,Thread-1,2022-07-29T23:00:38.509470Z
+E037,,debug,"Opening a new connection, currently in state closed",64548,Thread-1,2022-07-29T23:00:38.509681Z
+E017,,debug,SQL status: BEGIN in 0.01 seconds,64548,Thread-1,2022-07-29T23:00:38.522475Z
+E015,,debug,"Using postgres connection ""model.mimic.weight_first_day""",64548,Thread-1,2022-07-29T23:00:38.523204Z
+E016,,debug,"On model.mimic.weight_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.weight_first_day""} */
+
+
+  create  table ""mimic"".""public"".""weight_first_day__dbt_tmp""
+  as (
+    -- This query extracts weights for adult ICU patients on their first ICU day.
+-- It does *not* use any information after the first ICU day, as weight is
+-- sometimes used to monitor fluid balance.
+
+-- ** Requires the echodata view, generated by concepts/echo-data.sql
+
+with ce as
+(
+    SELECT
+      c.icustay_id
+      -- we take the avg value from roughly first day
+      -- TODO: eliminate obvious outliers if there is a reasonable weight
+      -- (e.g. weight of 180kg and 90kg would remove 180kg instead of taking the median)
+      , AVG(VALUENUM) as Weight_Admit
+    FROM chartevents c
+    inner join icustays ie
+        on c.icustay_id = ie.icustay_id
+        and c.charttime <= DATETIME_ADD(ie.intime, INTERVAL '1' DAY)
+        and c.charttime > DATETIME_SUB(ie.intime, INTERVAL '1' DAY) -- some fuzziness for admit time
+    WHERE c.valuenum IS NOT NULL
+    AND c.itemid in (762,226512) -- Admit Wt
+    AND c.valuenum != 0
+    -- exclude rows marked as error
+    AND (c.error IS NULL OR c.error = 0)
+    group by c.icustay_id
+)
+, dwt as
+(
+    SELECT
+      c.icustay_id
+      , AVG(VALUENUM) as Weight_Daily
+    FROM chartevents c
+    INNER JOIN icustays ie
+        on c.icustay_id = ie.icustay_id
+        and c.charttime <= DATETIME_ADD(ie.intime, INTERVAL '1' DAY)
+        and c.charttime > DATETIME_SUB(ie.intime, INTERVAL '1' DAY) -- some fuzziness for admit time
+    WHERE c.valuenum IS NOT NULL
+    AND c.itemid in (763,224639) -- Daily Weight
+    AND c.valuenum != 0
+    -- exclude rows marked as error
+    AND (c.error IS NULL OR c.error = 0)
+    group by c.icustay_id
+)
+-- we split in-hospital/out of hospital echoes as we would like to prioritize in-hospital data
+, echo_hadm as
+(
+    select
+        ie.icustay_id
+        , 0.453592*AVG(weight) as Weight_EchoInHosp
+    from ""mimic"".""public"".""echo_data"" ec
+    inner join icustays ie
+        on ec.hadm_id = ie.hadm_id
+        and ec.charttime < DATETIME_ADD(ie.intime, INTERVAL '1' DAY)
+    where
+            ec.HADM_ID is not null
+        and ec.weight is not null
+    group by ie.icustay_id
+)
+, echo_nohadm as
+(
+    select
+        ie.icustay_id
+        , 0.453592*AVG(weight) as Weight_EchoPreHosp
+    from ""mimic"".""public"".""echo_data"" ec
+    inner join icustays ie
+        on ie.subject_id = ec.subject_id
+        and ie.intime < DATETIME_ADD(ec.charttime, INTERVAL '1' MONTH)
+        and ie.intime > ec.charttime
+    where
+            ec.HADM_ID is null
+        and ec.weight is not null
+    group by ie.icustay_id
+)
+select
+    ie.icustay_id
+    , round(cast(
+    case
+        when ce.icustay_id is not null
+            then ce.Weight_Admit
+        when dwt.icustay_id is not null
+            then dwt.Weight_Daily
+        when eh.icustay_id is not null
+            then eh.Weight_EchoInHosp
+        when enh.icustay_id is not null
+            then enh.Weight_EchoPreHosp
+        else null end
+        as numeric), 2)
+    as weight
+
+    -- components
+    , ce.weight_admit
+    , dwt.weight_daily
+    , eh.weight_echoinhosp
+    , enh.weight_echoprehosp
+
+FROM icustays ie
+
+-- filter to only adults
+inner join patients pat
+    on ie.subject_id = pat.subject_id
+    and ie.intime > DATETIME_ADD(pat.dob, INTERVAL '1' YEAR)
+
+-- admission weight
+left join ce
+    on ie.icustay_id = ce.icustay_id
+
+-- daily weights
+left join dwt
+    on ie.icustay_id = dwt.icustay_id
+
+-- in-hospital echo weight
+left join echo_hadm eh
+    on ie.icustay_id = eh.icustay_id
+
+-- pre-hospitalization echo weights
+left join echo_nohadm enh
+    on ie.icustay_id = enh.icustay_id
+order by ie.icustay_id
+  );",64548,Thread-1,2022-07-29T23:00:38.524027Z
+E017,,debug,SQL status: SELECT 53432 in 0.18 seconds,64548,Thread-1,2022-07-29T23:00:38.705018Z
+E015,,debug,"Using postgres connection ""model.mimic.weight_first_day""",64548,Thread-1,2022-07-29T23:00:38.710763Z
+E016,,debug,"On model.mimic.weight_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.weight_first_day""} */
+alter table ""mimic"".""public"".""weight_first_day"" rename to ""weight_first_day__dbt_backup""",64548,Thread-1,2022-07-29T23:00:38.711042Z
+E017,,debug,SQL status: ALTER TABLE in 0.0 seconds,64548,Thread-1,2022-07-29T23:00:38.712095Z
+E015,,debug,"Using postgres connection ""model.mimic.weight_first_day""",64548,Thread-1,2022-07-29T23:00:38.717385Z
+E016,,debug,"On model.mimic.weight_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.weight_first_day""} */
+alter table ""mimic"".""public"".""weight_first_day__dbt_tmp"" rename to ""weight_first_day""",64548,Thread-1,2022-07-29T23:00:38.717652Z
+E017,,debug,SQL status: ALTER TABLE in 0.0 seconds,64548,Thread-1,2022-07-29T23:00:38.718729Z
+E018,,debug,On model.mimic.weight_first_day: COMMIT,64548,Thread-1,2022-07-29T23:00:38.722608Z
+E015,,debug,"Using postgres connection ""model.mimic.weight_first_day""",64548,Thread-1,2022-07-29T23:00:38.722905Z
+E016,,debug,On model.mimic.weight_first_day: COMMIT,64548,Thread-1,2022-07-29T23:00:38.723160Z
+E017,,debug,SQL status: COMMIT in 0.01 seconds,64548,Thread-1,2022-07-29T23:00:38.729707Z
+E015,,debug,"Using postgres connection ""model.mimic.weight_first_day""",64548,Thread-1,2022-07-29T23:00:38.732368Z
+E016,,debug,"On model.mimic.weight_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.weight_first_day""} */
+drop table if exists ""mimic"".""public"".""weight_first_day__dbt_backup"" cascade",64548,Thread-1,2022-07-29T23:00:38.732595Z
+E017,,debug,SQL status: DROP TABLE in 0.0 seconds,64548,Thread-1,2022-07-29T23:00:38.734973Z
+Z010,,debug,finished collecting timing info,64548,Thread-1,2022-07-29T23:00:38.737741Z
+E010,,debug,On model.mimic.weight_first_day: Close,64548,Thread-1,2022-07-29T23:00:38.738000Z
+Z040,,debug,"Sending event: {'category': 'dbt', 'action': 'run_model', 'label': '1fc17614-c4ac-4308-83ff-170fd628080c', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x7f184c54abe0>]}",64548,Thread-1,2022-07-29T23:00:38.738660Z
+Q012,0,info,9 of 10 OK created table model public.weight_first_day ......................... [[32mSELECT 53432[0m in 0.25s],64548,Thread-1,2022-07-29T23:00:38.739375Z,table,null,weight_first_day,firstday/weight_first_day.sql,2022-07-29T23:00:38.486521,compiling,model,,,
+Q024,0.24984216690063477,debug,Finished running node model.mimic.weight_first_day,64548,Thread-1,2022-07-29T23:00:38.740079Z,table,2022-07-29T23:00:38.739897,weight_first_day,firstday/weight_first_day.sql,2022-07-29T23:00:38.486521,success,model,,,
+Q023,,debug,Began running node model.mimic.blood_gas_first_day_arterial,64548,Thread-1,2022-07-29T23:00:38.740737Z,table,null,blood_gas_first_day_arterial,firstday/blood_gas_first_day_arterial.sql,2022-07-29T23:00:38.740599,started,model,,,
+Q033,,info,10 of 10 START table model public.blood_gas_first_day_arterial ................. [RUN],64548,Thread-1,2022-07-29T23:00:38.741422Z,table,null,blood_gas_first_day_arterial,firstday/blood_gas_first_day_arterial.sql,2022-07-29T23:00:38.740599,started,model,,,
+E005,,debug,"Acquiring new postgres connection ""model.mimic.blood_gas_first_day_arterial""",64548,Thread-1,2022-07-29T23:00:38.742555Z
+Q030,,debug,Began compiling node model.mimic.blood_gas_first_day_arterial,64548,Thread-1,2022-07-29T23:00:38.743066Z,table,null,blood_gas_first_day_arterial,firstday/blood_gas_first_day_arterial.sql,2022-07-29T23:00:38.740599,compiling,model,,,
+Q027,,debug,Compiling model.mimic.blood_gas_first_day_arterial,64548,Thread-1,2022-07-29T23:00:38.743351Z
+Q028,,debug,"Writing injected SQL for node ""model.mimic.blood_gas_first_day_arterial""",64548,Thread-1,2022-07-29T23:00:38.747163Z
+Z010,,debug,finished collecting timing info,64548,Thread-1,2022-07-29T23:00:38.747839Z
+Q031,,debug,Began executing node model.mimic.blood_gas_first_day_arterial,64548,Thread-1,2022-07-29T23:00:38.748156Z,table,null,blood_gas_first_day_arterial,firstday/blood_gas_first_day_arterial.sql,null,executing,model,,,
+M012,,debug,"Writing runtime SQL for node ""model.mimic.blood_gas_first_day_arterial""",64548,Thread-1,2022-07-29T23:00:38.756308Z
+E015,,debug,"Using postgres connection ""model.mimic.blood_gas_first_day_arterial""",64548,Thread-1,2022-07-29T23:00:38.757288Z
+E016,,debug,On model.mimic.blood_gas_first_day_arterial: BEGIN,64548,Thread-1,2022-07-29T23:00:38.757595Z
+E037,,debug,"Opening a new connection, currently in state closed",64548,Thread-1,2022-07-29T23:00:38.757895Z
+E017,,debug,SQL status: BEGIN in 0.01 seconds,64548,Thread-1,2022-07-29T23:00:38.765928Z
+E015,,debug,"Using postgres connection ""model.mimic.blood_gas_first_day_arterial""",64548,Thread-1,2022-07-29T23:00:38.766347Z
+E016,,debug,"On model.mimic.blood_gas_first_day_arterial: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.blood_gas_first_day_arterial""} */
+
+
+  create  table ""mimic"".""public"".""blood_gas_first_day_arterial__dbt_tmp""
+  as (
+    with stg_spo2 as
+(
+  select subject_id, hadm_id, icustay_id, charttime
+    -- max here is just used to group SpO2 by charttime
+    , max(case when valuenum <= 0 or valuenum > 100 then null else valuenum end) as SpO2
+  FROM chartevents
+  -- o2 sat
+  where ITEMID in
+  (
+    646 -- SpO2
+  , 220277 -- O2 saturation pulseoxymetry
+  )
+  group by subject_id, hadm_id, icustay_id, charttime
+)
+, stg_fio2 as
+(
+  select subject_id, hadm_id, icustay_id, charttime
+    -- pre-process the FiO2s to ensure they are between 21-100%
+    , max(
+        case
+          when itemid = 223835
+            then case
+              when valuenum > 0 and valuenum <= 1
+                then valuenum * 100
+              -- improperly input data - looks like O2 flow in litres
+              when valuenum > 1 and valuenum < 21
+                then null
+              when valuenum >= 21 and valuenum <= 100
+                then valuenum
+              else null end -- unphysiological
+        when itemid in (3420, 3422)
+        -- all these values are well formatted
+            then valuenum
+        when itemid = 190 and valuenum > 0.20 and valuenum < 1
+        -- well formatted but not in %
+            then valuenum * 100
+      else null end
+    ) as fio2_chartevents
+  FROM chartevents
+  where ITEMID in
+  (
+    3420 -- FiO2
+  , 190 -- FiO2 set
+  , 223835 -- Inspired O2 Fraction (FiO2)
+  , 3422 -- FiO2 [measured]
+  )
+  -- exclude rows marked as error
+  AND (error IS NULL OR error = 0)
+  group by subject_id, hadm_id, icustay_id, charttime
+)
+, stg2 as
+(
+select bg.*
+  , ROW_NUMBER() OVER (partition by bg.icustay_id, bg.charttime order by s1.charttime DESC) as lastRowSpO2
+  , s1.spo2
+from ""mimic"".""public"".""blood_gas_first_day"" bg
+left join stg_spo2 s1
+  -- same patient
+  on  bg.icustay_id = s1.icustay_id
+  -- spo2 occurred at most 2 hours before this blood gas
+  and s1.charttime >= DATETIME_SUB(bg.charttime, INTERVAL '2' HOUR)
+  and s1.charttime <= bg.charttime
+where bg.po2 is not null
+)
+, stg3 as
+(
+select bg.*
+  , ROW_NUMBER() OVER (partition by bg.icustay_id, bg.charttime order by s2.charttime DESC) as lastRowFiO2
+  , s2.fio2_chartevents
+
+  -- create our specimen prediction
+  ,  1/(1+exp(-(-0.02544
+  +    0.04598 * po2
+  + coalesce(-0.15356 * spo2             , -0.15356 *   97.49420 +    0.13429)
+  + coalesce( 0.00621 * fio2_chartevents ,  0.00621 *   51.49550 +   -0.24958)
+  + coalesce( 0.10559 * hemoglobin       ,  0.10559 *   10.32307 +    0.05954)
+  + coalesce( 0.13251 * so2              ,  0.13251 *   93.66539 +   -0.23172)
+  + coalesce(-0.01511 * pco2             , -0.01511 *   42.08866 +   -0.01630)
+  + coalesce( 0.01480 * fio2             ,  0.01480 *   63.97836 +   -0.31142)
+  + coalesce(-0.00200 * aado2            , -0.00200 *  442.21186 +   -0.01328)
+  + coalesce(-0.03220 * bicarbonate      , -0.03220 *   22.96894 +   -0.06535)
+  + coalesce( 0.05384 * totalco2         ,  0.05384 *   24.72632 +   -0.01405)
+  + coalesce( 0.08202 * lactate          ,  0.08202 *    3.06436 +    0.06038)
+  + coalesce( 0.10956 * ph               ,  0.10956 *    7.36233 +   -0.00617)
+  + coalesce( 0.00848 * o2flow           ,  0.00848 *    7.59362 +   -0.35803)
+  ))) as SPECIMEN_PROB
+from stg2 bg
+left join stg_fio2 s2
+  -- same patient
+  on  bg.icustay_id = s2.icustay_id
+  -- fio2 occurred at most 4 hours before this blood gas
+  and s2.charttime between DATETIME_SUB(bg.charttime, INTERVAL '4' HOUR) and bg.charttime
+where bg.lastRowSpO2 = 1 -- only the row with the most recent SpO2 (if no SpO2 found lastRowSpO2 = 1)
+)
+
+select subject_id, hadm_id,
+icustay_id, charttime
+, specimen -- raw data indicating sample type, only present 80% of the time
+
+-- prediction of specimen for missing data
+, case
+      when SPECIMEN is not null then SPECIMEN
+      when SPECIMEN_PROB > 0.75 then 'ART'
+    else null end as SPECIMEN_PRED
+, specimen_prob
+-- oxygen related parameters
+, so2, spo2 -- note spo2 is FROM chartevents
+, po2, pco2
+, fio2_chartevents, fio2
+, aado2
+-- also calculate AADO2
+, case
+    when  PO2 is not null
+      and pco2 is not null
+      and coalesce(fio2, fio2_chartevents) is not null
+     -- multiple by 100 because FiO2 is in a % but should be a fraction
+      then (coalesce(fio2, fio2_chartevents)/100) * (760 - 47) - (pco2/0.8) - po2
+    else null
+  end as AADO2_calc
+, case
+    when PO2 is not null and coalesce(fio2, fio2_chartevents) is not null
+     -- multiply by 100 because FiO2 is in a % but should be a fraction
+      then 100*PO2/(coalesce(fio2, fio2_chartevents))
+    else null
+  end as PaO2FiO2
+-- acid-base parameters
+, ph, baseexcess
+, bicarbonate, totalco2
+
+-- blood count parameters
+, hematocrit
+, hemoglobin
+, carboxyhemoglobin
+, methemoglobin
+
+-- chemistry
+, chloride, calcium
+, temperature
+, potassium, sodium
+, lactate
+, glucose
+
+-- ventilation stuff that's sometimes input
+, intubated, tidalvolume, ventilationrate, ventilator
+, peep, o2flow
+, requiredo2
+
+from stg3
+where lastRowFiO2 = 1 -- only the most recent FiO2
+-- restrict it to *only* arterial samples
+and (specimen = 'ART' or specimen_prob > 0.75)
+order by icustay_id, charttime
+  );",64548,Thread-1,2022-07-29T23:00:38.766675Z
+E017,,debug,SQL status: SELECT 0 in 0.03 seconds,64548,Thread-1,2022-07-29T23:00:38.795931Z
+E015,,debug,"Using postgres connection ""model.mimic.blood_gas_first_day_arterial""",64548,Thread-1,2022-07-29T23:00:38.804660Z
+E016,,debug,"On model.mimic.blood_gas_first_day_arterial: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.blood_gas_first_day_arterial""} */
+alter table ""mimic"".""public"".""blood_gas_first_day_arterial"" rename to ""blood_gas_first_day_arterial__dbt_backup""",64548,Thread-1,2022-07-29T23:00:38.804956Z
+E017,,debug,SQL status: ALTER TABLE in 0.0 seconds,64548,Thread-1,2022-07-29T23:00:38.806133Z
+E015,,debug,"Using postgres connection ""model.mimic.blood_gas_first_day_arterial""",64548,Thread-1,2022-07-29T23:00:38.814722Z
+E016,,debug,"On model.mimic.blood_gas_first_day_arterial: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.blood_gas_first_day_arterial""} */
+alter table ""mimic"".""public"".""blood_gas_first_day_arterial__dbt_tmp"" rename to ""blood_gas_first_day_arterial""",64548,Thread-1,2022-07-29T23:00:38.815220Z
+E017,,debug,SQL status: ALTER TABLE in 0.0 seconds,64548,Thread-1,2022-07-29T23:00:38.816470Z
+E018,,debug,On model.mimic.blood_gas_first_day_arterial: COMMIT,64548,Thread-1,2022-07-29T23:00:38.822550Z
+E015,,debug,"Using postgres connection ""model.mimic.blood_gas_first_day_arterial""",64548,Thread-1,2022-07-29T23:00:38.823131Z
+E016,,debug,On model.mimic.blood_gas_first_day_arterial: COMMIT,64548,Thread-1,2022-07-29T23:00:38.823535Z
+E017,,debug,SQL status: COMMIT in 0.0 seconds,64548,Thread-1,2022-07-29T23:00:38.825872Z
+E015,,debug,"Using postgres connection ""model.mimic.blood_gas_first_day_arterial""",64548,Thread-1,2022-07-29T23:00:38.828341Z
+E016,,debug,"On model.mimic.blood_gas_first_day_arterial: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.blood_gas_first_day_arterial""} */
+drop table if exists ""mimic"".""public"".""blood_gas_first_day_arterial__dbt_backup"" cascade",64548,Thread-1,2022-07-29T23:00:38.828645Z
+E017,,debug,SQL status: DROP TABLE in 0.0 seconds,64548,Thread-1,2022-07-29T23:00:38.832678Z
+Z010,,debug,finished collecting timing info,64548,Thread-1,2022-07-29T23:00:38.837878Z
+E010,,debug,On model.mimic.blood_gas_first_day_arterial: Close,64548,Thread-1,2022-07-29T23:00:38.838593Z
+Z040,,debug,"Sending event: {'category': 'dbt', 'action': 'run_model', 'label': '1fc17614-c4ac-4308-83ff-170fd628080c', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x7f184c57cfa0>]}",64548,Thread-1,2022-07-29T23:00:38.840434Z
+Q012,0,info,10 of 10 OK created table model public.blood_gas_first_day_arterial ............ [[32mSELECT 0[0m in 0.10s],64548,Thread-1,2022-07-29T23:00:38.841241Z,table,null,blood_gas_first_day_arterial,firstday/blood_gas_first_day_arterial.sql,2022-07-29T23:00:38.740599,compiling,model,,,
+Q024,0.0980224609375,debug,Finished running node model.mimic.blood_gas_first_day_arterial,64548,Thread-1,2022-07-29T23:00:38.843351Z,table,2022-07-29T23:00:38.842969,blood_gas_first_day_arterial,firstday/blood_gas_first_day_arterial.sql,2022-07-29T23:00:38.740599,success,model,,,
+E005,,debug,"Acquiring new postgres connection ""master""",64548,MainThread,2022-07-29T23:00:38.847206Z
+E015,,debug,"Using postgres connection ""master""",64548,MainThread,2022-07-29T23:00:38.847659Z
+E016,,debug,On master: BEGIN,64548,MainThread,2022-07-29T23:00:38.847988Z
+E037,,debug,"Opening a new connection, currently in state closed",64548,MainThread,2022-07-29T23:00:38.848158Z
+E017,,debug,SQL status: BEGIN in 0.01 seconds,64548,MainThread,2022-07-29T23:00:38.859189Z
+E018,,debug,On master: COMMIT,64548,MainThread,2022-07-29T23:00:38.859615Z
+E015,,debug,"Using postgres connection ""master""",64548,MainThread,2022-07-29T23:00:38.860047Z
+E016,,debug,On master: COMMIT,64548,MainThread,2022-07-29T23:00:38.860272Z
+E017,,debug,SQL status: COMMIT in 0.0 seconds,64548,MainThread,2022-07-29T23:00:38.860868Z
+E010,,debug,On master: Close,64548,MainThread,2022-07-29T23:00:38.861327Z
+E040,,info,Finished running 10 table models in 8.93s.,64548,MainThread,2022-07-29T23:00:38.862540Z
+E008,,debug,Connection 'master' was properly closed.,64548,MainThread,2022-07-29T23:00:38.863308Z
+E008,,debug,Connection 'model.mimic.blood_gas_first_day_arterial' was properly closed.,64548,MainThread,2022-07-29T23:00:38.863541Z
+Z030,,info,[32mCompleted successfully[0m,64548,MainThread,2022-07-29T23:00:38.888224Z
+Z023,,info,Done. PASS=10 WARN=0 ERROR=0 SKIP=0 TOTAL=10,64548,MainThread,2022-07-29T23:00:38.888922Z
+Z040,,debug,"Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'end', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x7f1853823e80>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x7f184c564f40>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x7f184e86c2e0>]}",64548,MainThread,2022-07-29T23:00:38.889578Z
+A001,,info,Running with dbt=1.1.1,64737,MainThread,2022-07-29T23:01:19.139762Z
+A002,,debug,"running dbt with arguments {'log_format': 'json', 'write_json': True, 'use_colors': True, 'printer_width': 80, 'version_check': True, 'partial_parse': True, 'static_parser': True, 'profiles_dir': '/home/ceci/.dbt', 'send_anonymous_usage_stats': True, 'event_buffer_size': 100000, 'quiet': False, 'no_print': False, 'select': ['firstday'], 'which': 'run', 'rpc_method': 'run', 'indirect_selection': 'eager'}",64737,MainThread,2022-07-29T23:01:19.140555Z
+A003,,debug,Tracking: tracking,64737,MainThread,2022-07-29T23:01:19.141197Z
+Z040,,debug,"Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'start', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x7f6d5ddbbcd0>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x7f6d5ddbb3d0>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x7f6d5ddbbeb0>]}",64737,MainThread,2022-07-29T23:01:19.148625Z
+I040,,debug,"Partial parsing enabled: 0 files deleted, 0 files added, 0 files changed.",64737,MainThread,2022-07-29T23:01:19.312743Z
+I017,,debug,"Partial parsing enabled, no changes found, skipping parsing",64737,MainThread,2022-07-29T23:01:19.313026Z
+Z046,,warn,"[[33mWARNING[0m]: Configuration paths exist in your dbt_project.yml file which do not apply to any resources.
+There are 2 unused configuration paths:
+- models.mimic.example
+- models.mimic.diagnosis
+",64737,MainThread,2022-07-29T23:01:19.315530Z
+Z040,,debug,"Sending event: {'category': 'dbt', 'action': 'load_project', 'label': '51f6a751-a1bb-44fa-a157-e9f8f43002de', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x7f6d5db15fd0>]}",64737,MainThread,2022-07-29T23:01:19.323631Z
+Z040,,debug,"Sending event: {'category': 'dbt', 'action': 'resource_counts', 'label': '51f6a751-a1bb-44fa-a157-e9f8f43002de', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x7f6d5f5ca910>]}",64737,MainThread,2022-07-29T23:01:19.346103Z
+W006,,info,"Found 107 models, 0 tests, 0 snapshots, 0 analyses, 167 macros, 0 operations, 0 seed files, 0 sources, 0 exposures, 0 metrics",64737,MainThread,2022-07-29T23:01:19.346992Z
+Z040,,debug,"Sending event: {'category': 'dbt', 'action': 'runnable_timing', 'label': '51f6a751-a1bb-44fa-a157-e9f8f43002de', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x7f6d5f5ca490>]}",64737,MainThread,2022-07-29T23:01:19.347915Z
+E005,,debug,"Acquiring new postgres connection ""master""",64737,MainThread,2022-07-29T23:01:19.352481Z
+E005,,debug,"Acquiring new postgres connection ""list_mimic""",64737,ThreadPoolExecutor-0_0,2022-07-29T23:01:19.356287Z
+E015,,debug,"Using postgres connection ""list_mimic""",64737,ThreadPoolExecutor-0_0,2022-07-29T23:01:19.368086Z
+E016,,debug,"On list_mimic: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""connection_name"": ""list_mimic""} */
+
+    select distinct nspname from pg_namespace
+  ",64737,ThreadPoolExecutor-0_0,2022-07-29T23:01:19.368856Z
+E037,,debug,"Opening a new connection, currently in state init",64737,ThreadPoolExecutor-0_0,2022-07-29T23:01:19.369052Z
+E017,,debug,SQL status: SELECT 6 in 0.01 seconds,64737,ThreadPoolExecutor-0_0,2022-07-29T23:01:19.382445Z
+E010,,debug,On list_mimic: Close,64737,ThreadPoolExecutor-0_0,2022-07-29T23:01:19.393870Z
+E005,,debug,"Acquiring new postgres connection ""list_mimic_public""",64737,ThreadPoolExecutor-1_0,2022-07-29T23:01:19.405223Z
+E015,,debug,"Using postgres connection ""list_mimic_public""",64737,ThreadPoolExecutor-1_0,2022-07-29T23:01:19.418591Z
+E016,,debug,On list_mimic_public: BEGIN,64737,ThreadPoolExecutor-1_0,2022-07-29T23:01:19.418896Z
+E037,,debug,"Opening a new connection, currently in state closed",64737,ThreadPoolExecutor-1_0,2022-07-29T23:01:19.419365Z
+E017,,debug,SQL status: BEGIN in 0.01 seconds,64737,ThreadPoolExecutor-1_0,2022-07-29T23:01:19.431891Z
+E015,,debug,"Using postgres connection ""list_mimic_public""",64737,ThreadPoolExecutor-1_0,2022-07-29T23:01:19.432554Z
+E016,,debug,"On list_mimic_public: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""connection_name"": ""list_mimic_public""} */
+select
+      'mimic' as database,
+      tablename as name,
+      schemaname as schema,
+      'table' as type
+    from pg_tables
+    where schemaname ilike 'public'
+    union all
+    select
+      'mimic' as database,
+      viewname as name,
+      schemaname as schema,
+      'view' as type
+    from pg_views
+    where schemaname ilike 'public'
+  ",64737,ThreadPoolExecutor-1_0,2022-07-29T23:01:19.433283Z
+E017,,debug,SQL status: SELECT 338 in 0.01 seconds,64737,ThreadPoolExecutor-1_0,2022-07-29T23:01:19.440483Z
+E012,,debug,On list_mimic_public: ROLLBACK,64737,ThreadPoolExecutor-1_0,2022-07-29T23:01:19.452146Z
+E010,,debug,On list_mimic_public: Close,64737,ThreadPoolExecutor-1_0,2022-07-29T23:01:19.452742Z
+E015,,debug,"Using postgres connection ""master""",64737,MainThread,2022-07-29T23:01:19.472288Z
+E016,,debug,On master: BEGIN,64737,MainThread,2022-07-29T23:01:19.472639Z
+E037,,debug,"Opening a new connection, currently in state init",64737,MainThread,2022-07-29T23:01:19.472883Z
+E017,,debug,SQL status: BEGIN in 0.01 seconds,64737,MainThread,2022-07-29T23:01:19.482115Z
+E015,,debug,"Using postgres connection ""master""",64737,MainThread,2022-07-29T23:01:19.482502Z
+E016,,debug,"On master: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""connection_name"": ""master""} */
+with relation as (
+        select
+            pg_rewrite.ev_class as class,
+            pg_rewrite.oid as id
+        from pg_rewrite
+    ),
+    class as (
+        select
+            oid as id,
+            relname as name,
+            relnamespace as schema,
+            relkind as kind
+        from pg_class
+    ),
+    dependency as (
+        select distinct
+            pg_depend.objid as id,
+            pg_depend.refobjid as ref
+        from pg_depend
+    ),
+    schema as (
+        select
+            pg_namespace.oid as id,
+            pg_namespace.nspname as name
+        from pg_namespace
+        where nspname != 'information_schema' and nspname not like 'pg\_%'
+    ),
+    referenced as (
+        select
+            relation.id AS id,
+            referenced_class.name ,
+            referenced_class.schema ,
+            referenced_class.kind
+        from relation
+        join class as referenced_class on relation.class=referenced_class.id
+        where referenced_class.kind in ('r', 'v')
+    ),
+    relationships as (
+        select
+            referenced.name as referenced_name,
+            referenced.schema as referenced_schema_id,
+            dependent_class.name as dependent_name,
+            dependent_class.schema as dependent_schema_id,
+            referenced.kind as kind
+        from referenced
+        join dependency on referenced.id=dependency.id
+        join class as dependent_class on dependency.ref=dependent_class.id
+        where
+            (referenced.name != dependent_class.name or
+             referenced.schema != dependent_class.schema)
+    )
+
+    select
+        referenced_schema.name as referenced_schema,
+        relationships.referenced_name as referenced_name,
+        dependent_schema.name as dependent_schema,
+        relationships.dependent_name as dependent_name
+    from relationships
+    join schema as dependent_schema on relationships.dependent_schema_id=dependent_schema.id
+    join schema as referenced_schema on relationships.referenced_schema_id=referenced_schema.id
+    group by referenced_schema, referenced_name, dependent_schema, dependent_name
+    order by referenced_schema, referenced_name, dependent_schema, dependent_name;",64737,MainThread,2022-07-29T23:01:19.482747Z
+E017,,debug,SQL status: SELECT 0 in 0.0 seconds,64737,MainThread,2022-07-29T23:01:19.486848Z
+Z040,,debug,"Sending event: {'category': 'dbt', 'action': 'runnable_timing', 'label': '51f6a751-a1bb-44fa-a157-e9f8f43002de', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x7f6d5dd7e910>]}",64737,MainThread,2022-07-29T23:01:19.490829Z
+E012,,debug,On master: ROLLBACK,64737,MainThread,2022-07-29T23:01:19.491288Z
+E015,,debug,"Using postgres connection ""master""",64737,MainThread,2022-07-29T23:01:19.491932Z
+E016,,debug,On master: BEGIN,64737,MainThread,2022-07-29T23:01:19.492281Z
+E017,,debug,SQL status: BEGIN in 0.0 seconds,64737,MainThread,2022-07-29T23:01:19.492981Z
+E018,,debug,On master: COMMIT,64737,MainThread,2022-07-29T23:01:19.493336Z
+E015,,debug,"Using postgres connection ""master""",64737,MainThread,2022-07-29T23:01:19.493514Z
+E016,,debug,On master: COMMIT,64737,MainThread,2022-07-29T23:01:19.493650Z
+E017,,debug,SQL status: COMMIT in 0.0 seconds,64737,MainThread,2022-07-29T23:01:19.494326Z
+E010,,debug,On master: Close,64737,MainThread,2022-07-29T23:01:19.494638Z
+Q026,,info,Concurrency: 1 threads (target='dev'),64737,MainThread,2022-07-29T23:01:19.495415Z
+Q023,,debug,Began running node model.mimic.blood_gas_first_day,64737,Thread-1,2022-07-29T23:01:19.499532Z,table,null,blood_gas_first_day,firstday/blood_gas_first_day.sql,2022-07-29T23:01:19.499465,started,model,,,
+Q033,,info,1 of 10 START table model public.blood_gas_first_day ........................... [RUN],64737,Thread-1,2022-07-29T23:01:19.500037Z,table,null,blood_gas_first_day,firstday/blood_gas_first_day.sql,2022-07-29T23:01:19.499465,started,model,,,
+E005,,debug,"Acquiring new postgres connection ""model.mimic.blood_gas_first_day""",64737,Thread-1,2022-07-29T23:01:19.500773Z
+Q030,,debug,Began compiling node model.mimic.blood_gas_first_day,64737,Thread-1,2022-07-29T23:01:19.500944Z,table,null,blood_gas_first_day,firstday/blood_gas_first_day.sql,2022-07-29T23:01:19.499465,compiling,model,,,
+Q027,,debug,Compiling model.mimic.blood_gas_first_day,64737,Thread-1,2022-07-29T23:01:19.501119Z
+Q028,,debug,"Writing injected SQL for node ""model.mimic.blood_gas_first_day""",64737,Thread-1,2022-07-29T23:01:19.502918Z
+Z010,,debug,finished collecting timing info,64737,Thread-1,2022-07-29T23:01:19.503544Z
+Q031,,debug,Began executing node model.mimic.blood_gas_first_day,64737,Thread-1,2022-07-29T23:01:19.503817Z,table,null,blood_gas_first_day,firstday/blood_gas_first_day.sql,null,executing,model,,,
+M012,,debug,"Writing runtime SQL for node ""model.mimic.blood_gas_first_day""",64737,Thread-1,2022-07-29T23:01:19.547027Z
+E015,,debug,"Using postgres connection ""model.mimic.blood_gas_first_day""",64737,Thread-1,2022-07-29T23:01:19.548075Z
+E016,,debug,On model.mimic.blood_gas_first_day: BEGIN,64737,Thread-1,2022-07-29T23:01:19.548355Z
+E037,,debug,"Opening a new connection, currently in state closed",64737,Thread-1,2022-07-29T23:01:19.548515Z
+E017,,debug,SQL status: BEGIN in 0.01 seconds,64737,Thread-1,2022-07-29T23:01:19.557370Z
+E015,,debug,"Using postgres connection ""model.mimic.blood_gas_first_day""",64737,Thread-1,2022-07-29T23:01:19.558005Z
+E016,,debug,"On model.mimic.blood_gas_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.blood_gas_first_day""} */
+
+
+  create  table ""mimic"".""public"".""blood_gas_first_day__dbt_tmp""
+  as (
+    -- The aim of this query is to pivot entries related to blood gases and
+-- chemistry values which were found in LABEVENTS
+
+-- things to check:
+--  when a mixed venous/arterial blood sample are taken at the same time, is the store time different?
+
+with pvt as
+( -- begin query that extracts the data
+  select ie.subject_id, ie.hadm_id, ie.icustay_id
+  -- here we assign labels to ITEMIDs
+  -- this also fuses together multiple ITEMIDs containing the same data
+      , case
+        when itemid = 50800 then 'SPECIMEN'
+        when itemid = 50801 then 'AADO2'
+        when itemid = 50802 then 'BASEEXCESS'
+        when itemid = 50803 then 'BICARBONATE'
+        when itemid = 50804 then 'TOTALCO2'
+        when itemid = 50805 then 'CARBOXYHEMOGLOBIN'
+        when itemid = 50806 then 'CHLORIDE'
+        when itemid = 50808 then 'CALCIUM'
+        when itemid = 50809 then 'GLUCOSE'
+        when itemid = 50810 then 'HEMATOCRIT'
+        when itemid = 50811 then 'HEMOGLOBIN'
+        when itemid = 50812 then 'INTUBATED'
+        when itemid = 50813 then 'LACTATE'
+        when itemid = 50814 then 'METHEMOGLOBIN'
+        when itemid = 50815 then 'O2FLOW'
+        when itemid = 50816 then 'FIO2'
+        when itemid = 50817 then 'SO2' -- OXYGENSATURATION
+        when itemid = 50818 then 'PCO2'
+        when itemid = 50819 then 'PEEP'
+        when itemid = 50820 then 'PH'
+        when itemid = 50821 then 'PO2'
+        when itemid = 50822 then 'POTASSIUM'
+        when itemid = 50823 then 'REQUIREDO2'
+        when itemid = 50824 then 'SODIUM'
+        when itemid = 50825 then 'TEMPERATURE'
+        when itemid = 50826 then 'TIDALVOLUME'
+        when itemid = 50827 then 'VENTILATIONRATE'
+        when itemid = 50828 then 'VENTILATOR'
+        else null
+        end as label
+        , charttime
+        , value
+        -- add in some sanity checks on the values
+        , case
+          when valuenum <= 0 and itemid != 50802 then null -- allow negative baseexcess
+          when itemid = 50810 and valuenum > 100 then null -- hematocrit
+          -- ensure FiO2 is a valid number between 21-100
+          -- mistakes are rare (<100 obs out of ~100,000)
+          -- there are 862 obs of valuenum == 20 - some people round down!
+          -- rather than risk imputing garbage data for FiO2, we simply NULL invalid values
+          when itemid = 50816 and valuenum < 20 then null
+          when itemid = 50816 and valuenum > 100 then null
+          when itemid = 50817 and valuenum > 100 then null -- O2 sat
+          when itemid = 50815 and valuenum >  70 then null -- O2 flow
+          when itemid = 50821 and valuenum > 800 then null -- PO2
+           -- conservative upper limit
+        else valuenum
+        end as valuenum
+
+    FROM icustays ie
+    left join labevents le
+      on le.subject_id = ie.subject_id and le.hadm_id = ie.hadm_id
+      and le.charttime between (DATETIME_SUB(ie.intime, INTERVAL '6' HOUR)) and (DATETIME_ADD(ie.intime, INTERVAL '1' DAY))
+      and le.ITEMID in
+      -- blood gases
+      (
+        50800, 50801, 50802, 50803, 50804, 50805, 50806, 50807, 50808, 50809
+        , 50810, 50811, 50812, 50813, 50814, 50815, 50816, 50817, 50818, 50819
+        , 50820, 50821, 50822, 50823, 50824, 50825, 50826, 50827, 50828
+        , 51545
+      )
+)
+select pvt.SUBJECT_ID, pvt.HADM_ID, pvt.ICUSTAY_ID, pvt.CHARTTIME
+, max(case when label = 'SPECIMEN' then value else null end) as specimen
+, max(case when label = 'AADO2' then valuenum else null end) as aado2
+, max(case when label = 'BASEEXCESS' then valuenum else null end) as baseexcess
+, max(case when label = 'BICARBONATE' then valuenum else null end) as bicarbonate
+, max(case when label = 'TOTALCO2' then valuenum else null end) as totalco2
+, max(case when label = 'CARBOXYHEMOGLOBIN' then valuenum else null end) as carboxyhemoglobin
+, max(case when label = 'CHLORIDE' then valuenum else null end) as chloride
+, max(case when label = 'CALCIUM' then valuenum else null end) as calcium
+, max(case when label = 'GLUCOSE' then valuenum else null end) as glucose
+, max(case when label = 'HEMATOCRIT' then valuenum else null end) as hematocrit
+, max(case when label = 'HEMOGLOBIN' then valuenum else null end) as hemoglobin
+, max(case when label = 'INTUBATED' then valuenum else null end) as intubated
+, max(case when label = 'LACTATE' then valuenum else null end) as lactate
+, max(case when label = 'METHEMOGLOBIN' then valuenum else null end) as methemoglobin
+, max(case when label = 'O2FLOW' then valuenum else null end) as o2flow
+, max(case when label = 'FIO2' then valuenum else null end) as fio2
+, max(case when label = 'SO2' then valuenum else null end) as so2 -- OXYGENSATURATION
+, max(case when label = 'PCO2' then valuenum else null end) as pco2
+, max(case when label = 'PEEP' then valuenum else null end) as peep
+, max(case when label = 'PH' then valuenum else null end) as ph
+, max(case when label = 'PO2' then valuenum else null end) as po2
+, max(case when label = 'POTASSIUM' then valuenum else null end) as potassium
+, max(case when label = 'REQUIREDO2' then valuenum else null end) as requiredo2
+, max(case when label = 'SODIUM' then valuenum else null end) as sodium
+, max(case when label = 'TEMPERATURE' then valuenum else null end) as temperature
+, max(case when label = 'TIDALVOLUME' then valuenum else null end) as tidalvolume
+, max(case when label = 'VENTILATIONRATE' then valuenum else null end) as ventilationrate
+, max(case when label = 'VENTILATOR' then valuenum else null end) as ventilator
+from pvt
+group by pvt.subject_id, pvt.hadm_id, pvt.icustay_id, pvt.CHARTTIME
+order by pvt.subject_id, pvt.hadm_id, pvt.icustay_id, pvt.CHARTTIME
+  );",64737,Thread-1,2022-07-29T23:01:19.558462Z
+E017,,debug,SQL status: SELECT 61532 in 0.17 seconds,64737,Thread-1,2022-07-29T23:01:19.725121Z
+E015,,debug,"Using postgres connection ""model.mimic.blood_gas_first_day""",64737,Thread-1,2022-07-29T23:01:19.736783Z
+E016,,debug,"On model.mimic.blood_gas_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.blood_gas_first_day""} */
+alter table ""mimic"".""public"".""blood_gas_first_day"" rename to ""blood_gas_first_day__dbt_backup""",64737,Thread-1,2022-07-29T23:01:19.737031Z
+E017,,debug,SQL status: ALTER TABLE in 0.0 seconds,64737,Thread-1,2022-07-29T23:01:19.737947Z
+E015,,debug,"Using postgres connection ""model.mimic.blood_gas_first_day""",64737,Thread-1,2022-07-29T23:01:19.741585Z
+E016,,debug,"On model.mimic.blood_gas_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.blood_gas_first_day""} */
+alter table ""mimic"".""public"".""blood_gas_first_day__dbt_tmp"" rename to ""blood_gas_first_day""",64737,Thread-1,2022-07-29T23:01:19.741956Z
+E017,,debug,SQL status: ALTER TABLE in 0.0 seconds,64737,Thread-1,2022-07-29T23:01:19.742842Z
+E018,,debug,On model.mimic.blood_gas_first_day: COMMIT,64737,Thread-1,2022-07-29T23:01:19.752918Z
+E015,,debug,"Using postgres connection ""model.mimic.blood_gas_first_day""",64737,Thread-1,2022-07-29T23:01:19.753168Z
+E016,,debug,On model.mimic.blood_gas_first_day: COMMIT,64737,Thread-1,2022-07-29T23:01:19.753396Z
+E017,,debug,SQL status: COMMIT in 0.01 seconds,64737,Thread-1,2022-07-29T23:01:19.760670Z
+E015,,debug,"Using postgres connection ""model.mimic.blood_gas_first_day""",64737,Thread-1,2022-07-29T23:01:19.767302Z
+E016,,debug,"On model.mimic.blood_gas_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.blood_gas_first_day""} */
+drop table if exists ""mimic"".""public"".""blood_gas_first_day__dbt_backup"" cascade",64737,Thread-1,2022-07-29T23:01:19.767563Z
+E017,,debug,SQL status: DROP TABLE in 0.0 seconds,64737,Thread-1,2022-07-29T23:01:19.770315Z
+Z010,,debug,finished collecting timing info,64737,Thread-1,2022-07-29T23:01:19.773107Z
+E010,,debug,On model.mimic.blood_gas_first_day: Close,64737,Thread-1,2022-07-29T23:01:19.773398Z
+Z040,,debug,"Sending event: {'category': 'dbt', 'action': 'run_model', 'label': '51f6a751-a1bb-44fa-a157-e9f8f43002de', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x7f6d5d2e33a0>]}",64737,Thread-1,2022-07-29T23:01:19.774240Z
+Q012,0,info,1 of 10 OK created table model public.blood_gas_first_day ...................... [[32mSELECT 61532[0m in 0.27s],64737,Thread-1,2022-07-29T23:01:19.774771Z,table,null,blood_gas_first_day,firstday/blood_gas_first_day.sql,2022-07-29T23:01:19.499465,compiling,model,,,
+Q024,0.27367115020751953,debug,Finished running node model.mimic.blood_gas_first_day,64737,Thread-1,2022-07-29T23:01:19.775407Z,table,2022-07-29T23:01:19.775232,blood_gas_first_day,firstday/blood_gas_first_day.sql,2022-07-29T23:01:19.499465,success,model,,,
+Q023,,debug,Began running node model.mimic.gcs_first_day,64737,Thread-1,2022-07-29T23:01:19.775932Z,table,null,gcs_first_day,firstday/gcs_first_day.sql,2022-07-29T23:01:19.775826,started,model,,,
+Q033,,info,2 of 10 START table model public.gcs_first_day ................................. [RUN],64737,Thread-1,2022-07-29T23:01:19.776634Z,table,null,gcs_first_day,firstday/gcs_first_day.sql,2022-07-29T23:01:19.775826,started,model,,,
+E005,,debug,"Acquiring new postgres connection ""model.mimic.gcs_first_day""",64737,Thread-1,2022-07-29T23:01:19.777670Z
+Q030,,debug,Began compiling node model.mimic.gcs_first_day,64737,Thread-1,2022-07-29T23:01:19.778361Z,table,null,gcs_first_day,firstday/gcs_first_day.sql,2022-07-29T23:01:19.775826,compiling,model,,,
+Q027,,debug,Compiling model.mimic.gcs_first_day,64737,Thread-1,2022-07-29T23:01:19.778719Z
+Q028,,debug,"Writing injected SQL for node ""model.mimic.gcs_first_day""",64737,Thread-1,2022-07-29T23:01:19.780446Z
+Z010,,debug,finished collecting timing info,64737,Thread-1,2022-07-29T23:01:19.781194Z
+Q031,,debug,Began executing node model.mimic.gcs_first_day,64737,Thread-1,2022-07-29T23:01:19.781465Z,table,null,gcs_first_day,firstday/gcs_first_day.sql,null,executing,model,,,
+M012,,debug,"Writing runtime SQL for node ""model.mimic.gcs_first_day""",64737,Thread-1,2022-07-29T23:01:19.791729Z
+E015,,debug,"Using postgres connection ""model.mimic.gcs_first_day""",64737,Thread-1,2022-07-29T23:01:19.792625Z
+E016,,debug,On model.mimic.gcs_first_day: BEGIN,64737,Thread-1,2022-07-29T23:01:19.792916Z
+E037,,debug,"Opening a new connection, currently in state closed",64737,Thread-1,2022-07-29T23:01:19.793167Z
+E017,,debug,SQL status: BEGIN in 0.01 seconds,64737,Thread-1,2022-07-29T23:01:19.804265Z
+E015,,debug,"Using postgres connection ""model.mimic.gcs_first_day""",64737,Thread-1,2022-07-29T23:01:19.804901Z
+E016,,debug,"On model.mimic.gcs_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.gcs_first_day""} */
+
+
+  create  table ""mimic"".""public"".""gcs_first_day__dbt_tmp""
+  as (
+    -- ITEMIDs used:
+
+-- CAREVUE
+--    723 as GCSVerbal
+--    454 as GCSMotor
+--    184 as GCSEyes
+
+-- METAVISION
+--    223900 GCS - Verbal Response
+--    223901 GCS - Motor Response
+--    220739 GCS - Eye Opening
+
+-- The code combines the ITEMIDs into the carevue itemids, then pivots those
+-- So 223900 is changed to 723, then the ITEMID 723 is pivoted to form GCSVerbal
+
+-- Note:
+--  The GCS for sedated patients is defaulted to 15 in this code.
+--  This is in line with how the data is meant to be collected.
+--  e.g., from the SAPS II publication:
+--    For sedated patients, the Glasgow Coma Score before sedation was used.
+--    This was ascertained either from interviewing the physician who ordered the sedation,
+--    or by reviewing the patient's medical record.
+
+with base as
+(
+  SELECT pvt.ICUSTAY_ID
+  , pvt.charttime
+
+  -- Easier names - note we coalesced Metavision and CareVue IDs below
+  , max(case when pvt.itemid = 454 then pvt.valuenum else null end) as GCSMotor
+  , max(case when pvt.itemid = 723 then pvt.valuenum else null end) as GCSVerbal
+  , max(case when pvt.itemid = 184 then pvt.valuenum else null end) as GCSEyes
+
+  -- If verbal was set to 0 in the below select, then this is an intubated patient
+  , case
+      when max(case when pvt.itemid = 723 then pvt.valuenum else null end) = 0
+    then 1
+    else 0
+    end as EndoTrachFlag
+
+  , ROW_NUMBER ()
+          OVER (PARTITION BY pvt.ICUSTAY_ID ORDER BY pvt.charttime ASC) as rn
+
+  FROM  (
+  select l.ICUSTAY_ID
+  -- merge the ITEMIDs so that the pivot applies to both metavision/carevue data
+  , case
+      when l.ITEMID in (723,223900) then 723
+      when l.ITEMID in (454,223901) then 454
+      when l.ITEMID in (184,220739) then 184
+      else l.ITEMID end
+    as ITEMID
+
+  -- convert the data into a number, reserving a value of 0 for ET/Trach
+  , case
+      -- endotrach/vent is assigned a value of 0, later parsed specially
+      when l.ITEMID = 723 and l.VALUE = '1.0 ET/Trach' then 0 -- carevue
+      when l.ITEMID = 223900 and l.VALUE = 'No Response-ETT' then 0 -- metavision
+
+      else VALUENUM
+      end
+    as VALUENUM
+  , l.CHARTTIME
+  FROM chartevents l
+
+  -- get intime for charttime subselection
+  inner join icustays b
+    on l.icustay_id = b.icustay_id
+
+  -- Isolate the desired GCS variables
+  where l.ITEMID in
+  (
+    -- 198 -- GCS
+    -- GCS components, CareVue
+    184, 454, 723
+    -- GCS components, Metavision
+    , 223900, 223901, 220739
+  )
+  -- Only get data for the first 24 hours
+  and l.charttime between b.intime and DATETIME_ADD(b.intime, INTERVAL '1' DAY)
+  -- exclude rows marked as error
+  AND (l.error IS NULL OR l.error = 0)
+  ) pvt
+  group by pvt.ICUSTAY_ID, pvt.charttime
+)
+, gcs as (
+  select b.*
+  , b2.GCSVerbal as GCSVerbalPrev
+  , b2.GCSMotor as GCSMotorPrev
+  , b2.GCSEyes as GCSEyesPrev
+  -- Calculate GCS, factoring in special case when they are intubated and prev vals
+  -- note that the coalesce are used to implement the following if:
+  --  if current value exists, use it
+  --  if previous value exists, use it
+  --  otherwise, default to normal
+  , case
+      -- replace GCS during sedation with 15
+      when b.GCSVerbal = 0
+        then 15
+      when b.GCSVerbal is null and b2.GCSVerbal = 0
+        then 15
+      -- if previously they were intub, but they aren't now, do not use previous GCS values
+      when b2.GCSVerbal = 0
+        then
+            coalesce(b.GCSMotor,6)
+          + coalesce(b.GCSVerbal,5)
+          + coalesce(b.GCSEyes,4)
+      -- otherwise, add up score normally, imputing previous value if none available at current time
+      else
+            coalesce(b.GCSMotor,coalesce(b2.GCSMotor,6))
+          + coalesce(b.GCSVerbal,coalesce(b2.GCSVerbal,5))
+          + coalesce(b.GCSEyes,coalesce(b2.GCSEyes,4))
+      end as GCS
+
+  from base b
+  -- join to itself within 6 hours to get previous value
+  left join base b2
+    on b.ICUSTAY_ID = b2.ICUSTAY_ID and b.rn = b2.rn+1 and b2.charttime > DATETIME_SUB(b.charttime, INTERVAL '6' HOUR)
+)
+, gcs_final as (
+  select gcs.*
+  -- This sorts the data by GCS, so rn=1 is the the lowest GCS values to keep
+  , ROW_NUMBER ()
+          OVER (PARTITION BY gcs.ICUSTAY_ID
+                ORDER BY gcs.GCS
+               ) as IsMinGCS
+  from gcs
+)
+select ie.subject_id, ie.hadm_id, ie.icustay_id
+-- The minimum GCS is determined by the above row partition, we only join if IsMinGCS=1
+, GCS as mingcs
+, coalesce(GCSMotor,GCSMotorPrev) as gcsmotor
+, coalesce(GCSVerbal,GCSVerbalPrev) as gcsverbal
+, coalesce(GCSEyes,GCSEyesPrev) as gcseyes
+, EndoTrachFlag as endotrachflag
+
+-- subselect down to the cohort of eligible patients
+FROM icustays ie
+left join gcs_final gs
+  on ie.icustay_id = gs.icustay_id and gs.IsMinGCS = 1
+ORDER BY ie.icustay_id
+  );",64737,Thread-1,2022-07-29T23:01:19.805260Z
+E017,,debug,SQL status: SELECT 61532 in 0.1 seconds,64737,Thread-1,2022-07-29T23:01:19.904139Z
+E015,,debug,"Using postgres connection ""model.mimic.gcs_first_day""",64737,Thread-1,2022-07-29T23:01:19.907973Z
+E016,,debug,"On model.mimic.gcs_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.gcs_first_day""} */
+alter table ""mimic"".""public"".""gcs_first_day"" rename to ""gcs_first_day__dbt_backup""",64737,Thread-1,2022-07-29T23:01:19.908194Z
+E017,,debug,SQL status: ALTER TABLE in 0.0 seconds,64737,Thread-1,2022-07-29T23:01:19.909010Z
+E015,,debug,"Using postgres connection ""model.mimic.gcs_first_day""",64737,Thread-1,2022-07-29T23:01:19.913603Z
+E016,,debug,"On model.mimic.gcs_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.gcs_first_day""} */
+alter table ""mimic"".""public"".""gcs_first_day__dbt_tmp"" rename to ""gcs_first_day""",64737,Thread-1,2022-07-29T23:01:19.913851Z
+E017,,debug,SQL status: ALTER TABLE in 0.0 seconds,64737,Thread-1,2022-07-29T23:01:19.914650Z
+E018,,debug,On model.mimic.gcs_first_day: COMMIT,64737,Thread-1,2022-07-29T23:01:19.917472Z
+E015,,debug,"Using postgres connection ""model.mimic.gcs_first_day""",64737,Thread-1,2022-07-29T23:01:19.917693Z
+E016,,debug,On model.mimic.gcs_first_day: COMMIT,64737,Thread-1,2022-07-29T23:01:19.918132Z
+E017,,debug,SQL status: COMMIT in 0.01 seconds,64737,Thread-1,2022-07-29T23:01:19.924427Z
+E015,,debug,"Using postgres connection ""model.mimic.gcs_first_day""",64737,Thread-1,2022-07-29T23:01:19.926932Z
+E016,,debug,"On model.mimic.gcs_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.gcs_first_day""} */
+drop table if exists ""mimic"".""public"".""gcs_first_day__dbt_backup"" cascade",64737,Thread-1,2022-07-29T23:01:19.927162Z
+E017,,debug,SQL status: DROP TABLE in 0.0 seconds,64737,Thread-1,2022-07-29T23:01:19.929034Z
+Z010,,debug,finished collecting timing info,64737,Thread-1,2022-07-29T23:01:19.931777Z
+E010,,debug,On model.mimic.gcs_first_day: Close,64737,Thread-1,2022-07-29T23:01:19.932055Z
+Z040,,debug,"Sending event: {'category': 'dbt', 'action': 'run_model', 'label': '51f6a751-a1bb-44fa-a157-e9f8f43002de', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x7f6d5d2df670>]}",64737,Thread-1,2022-07-29T23:01:19.932954Z
+Q012,0,info,2 of 10 OK created table model public.gcs_first_day ............................ [[32mSELECT 61532[0m in 0.16s],64737,Thread-1,2022-07-29T23:01:19.933576Z,table,null,gcs_first_day,firstday/gcs_first_day.sql,2022-07-29T23:01:19.775826,compiling,model,,,
+Q024,0.15552616119384766,debug,Finished running node model.mimic.gcs_first_day,64737,Thread-1,2022-07-29T23:01:19.934575Z,table,2022-07-29T23:01:19.934359,gcs_first_day,firstday/gcs_first_day.sql,2022-07-29T23:01:19.775826,success,model,,,
+Q023,,debug,Began running node model.mimic.height_first_day,64737,Thread-1,2022-07-29T23:01:19.935240Z,table,null,height_first_day,firstday/height_first_day.sql,2022-07-29T23:01:19.935171,started,model,,,
+Q033,,info,3 of 10 START table model public.height_first_day .............................. [RUN],64737,Thread-1,2022-07-29T23:01:19.936037Z,table,null,height_first_day,firstday/height_first_day.sql,2022-07-29T23:01:19.935171,started,model,,,
+E005,,debug,"Acquiring new postgres connection ""model.mimic.height_first_day""",64737,Thread-1,2022-07-29T23:01:19.936886Z
+Q030,,debug,Began compiling node model.mimic.height_first_day,64737,Thread-1,2022-07-29T23:01:19.937261Z,table,null,height_first_day,firstday/height_first_day.sql,2022-07-29T23:01:19.935171,compiling,model,,,
+Q027,,debug,Compiling model.mimic.height_first_day,64737,Thread-1,2022-07-29T23:01:19.937483Z
+Q028,,debug,"Writing injected SQL for node ""model.mimic.height_first_day""",64737,Thread-1,2022-07-29T23:01:19.940812Z
+Z010,,debug,finished collecting timing info,64737,Thread-1,2022-07-29T23:01:19.941861Z
+Q031,,debug,Began executing node model.mimic.height_first_day,64737,Thread-1,2022-07-29T23:01:19.942162Z,table,null,height_first_day,firstday/height_first_day.sql,null,executing,model,,,
+M012,,debug,"Writing runtime SQL for node ""model.mimic.height_first_day""",64737,Thread-1,2022-07-29T23:01:19.951109Z
+E015,,debug,"Using postgres connection ""model.mimic.height_first_day""",64737,Thread-1,2022-07-29T23:01:19.951899Z
+E016,,debug,On model.mimic.height_first_day: BEGIN,64737,Thread-1,2022-07-29T23:01:19.952159Z
+E037,,debug,"Opening a new connection, currently in state closed",64737,Thread-1,2022-07-29T23:01:19.952370Z
+E017,,debug,SQL status: BEGIN in 0.01 seconds,64737,Thread-1,2022-07-29T23:01:19.961459Z
+E015,,debug,"Using postgres connection ""model.mimic.height_first_day""",64737,Thread-1,2022-07-29T23:01:19.962330Z
+E016,,debug,"On model.mimic.height_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.height_first_day""} */
+
+
+  create  table ""mimic"".""public"".""height_first_day__dbt_tmp""
+  as (
+    -- This query extracts heights for adult ICU patients.
+-- It uses all information from the patient's first ICU day.
+-- This is done for consistency with other queries - it's not necessarily needed.
+-- Height is unlikely to change throughout a patient's stay.
+
+-- ** Requires the echodata view, generated by concepts/echo-data.sql
+
+-- staging table to ensure all heights are in centimeters
+with ce0 as
+(
+    SELECT
+      c.icustay_id
+      , case
+        -- convert inches to centimetres
+          when itemid in (920, 1394, 4187, 3486)
+              then valuenum * 2.54
+            else valuenum
+        end as Height
+    FROM chartevents c
+    inner join icustays ie
+        on c.icustay_id = ie.icustay_id
+        and c.charttime <= DATETIME_ADD(ie.intime, INTERVAL '1' DAY)
+        and c.charttime > DATETIME_SUB(ie.intime, INTERVAL '1' DAY) -- some fuzziness for admit time
+    WHERE c.valuenum IS NOT NULL
+    AND c.itemid in (226730,920, 1394, 4187, 3486,3485,4188) -- height
+    AND c.valuenum != 0
+    -- exclude rows marked as error
+    AND (c.error IS NULL OR c.error = 0)
+)
+, ce as
+(
+    SELECT
+        icustay_id
+        -- extract the median height from the chart to add robustness against outliers
+        , AVG(height) as Height_chart
+    from ce0
+    where height > 100
+    group by icustay_id
+)
+-- requires the echo-data.sql query to run
+-- this adds heights from the free-text echo notes
+, echo as
+(
+    select
+        ec.subject_id
+        -- all echo heights are in inches
+        , 2.54*AVG(height) as Height_Echo
+    from ""mimic"".""public"".""echo_data"" ec
+    inner join icustays ie
+        on ec.subject_id = ie.subject_id
+        and ec.charttime < DATETIME_ADD(ie.intime, INTERVAL '1' DAY)
+    where height is not null
+    and height*2.54 > 100
+    group by ec.subject_id
+)
+select
+    ie.icustay_id
+    , coalesce(ce.Height_chart, ec.Height_Echo) as height
+
+    -- components
+    , ce.height_chart
+    , ec.height_echo
+FROM icustays ie
+
+-- filter to only adults
+inner join patients pat
+    on ie.subject_id = pat.subject_id
+    and ie.intime > DATETIME_ADD(pat.dob, INTERVAL '1' YEAR)
+
+left join ce
+    on ie.icustay_id = ce.icustay_id
+
+left join echo ec
+    on ie.subject_id = ec.subject_id
+  );",64737,Thread-1,2022-07-29T23:01:19.963112Z
+E017,,debug,SQL status: SELECT 53432 in 0.14 seconds,64737,Thread-1,2022-07-29T23:01:20.104582Z
+E015,,debug,"Using postgres connection ""model.mimic.height_first_day""",64737,Thread-1,2022-07-29T23:01:20.112124Z
+E016,,debug,"On model.mimic.height_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.height_first_day""} */
+alter table ""mimic"".""public"".""height_first_day"" rename to ""height_first_day__dbt_backup""",64737,Thread-1,2022-07-29T23:01:20.112379Z
+E017,,debug,SQL status: ALTER TABLE in 0.0 seconds,64737,Thread-1,2022-07-29T23:01:20.113201Z
+E015,,debug,"Using postgres connection ""model.mimic.height_first_day""",64737,Thread-1,2022-07-29T23:01:20.120009Z
+E016,,debug,"On model.mimic.height_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.height_first_day""} */
+alter table ""mimic"".""public"".""height_first_day__dbt_tmp"" rename to ""height_first_day""",64737,Thread-1,2022-07-29T23:01:20.120495Z
+E017,,debug,SQL status: ALTER TABLE in 0.0 seconds,64737,Thread-1,2022-07-29T23:01:20.121648Z
+E018,,debug,On model.mimic.height_first_day: COMMIT,64737,Thread-1,2022-07-29T23:01:20.124896Z
+E015,,debug,"Using postgres connection ""model.mimic.height_first_day""",64737,Thread-1,2022-07-29T23:01:20.125106Z
+E016,,debug,On model.mimic.height_first_day: COMMIT,64737,Thread-1,2022-07-29T23:01:20.125365Z
+E017,,debug,SQL status: COMMIT in 0.01 seconds,64737,Thread-1,2022-07-29T23:01:20.130669Z
+E015,,debug,"Using postgres connection ""model.mimic.height_first_day""",64737,Thread-1,2022-07-29T23:01:20.132371Z
+E016,,debug,"On model.mimic.height_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.height_first_day""} */
+drop table if exists ""mimic"".""public"".""height_first_day__dbt_backup"" cascade",64737,Thread-1,2022-07-29T23:01:20.132588Z
+E017,,debug,SQL status: DROP TABLE in 0.0 seconds,64737,Thread-1,2022-07-29T23:01:20.134626Z
+Z010,,debug,finished collecting timing info,64737,Thread-1,2022-07-29T23:01:20.137944Z
+E010,,debug,On model.mimic.height_first_day: Close,64737,Thread-1,2022-07-29T23:01:20.138279Z
+Z040,,debug,"Sending event: {'category': 'dbt', 'action': 'run_model', 'label': '51f6a751-a1bb-44fa-a157-e9f8f43002de', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x7f6d5d2df730>]}",64737,Thread-1,2022-07-29T23:01:20.139081Z
+Q012,0,info,3 of 10 OK created table model public.height_first_day ......................... [[32mSELECT 53432[0m in 0.20s],64737,Thread-1,2022-07-29T23:01:20.139588Z,table,null,height_first_day,firstday/height_first_day.sql,2022-07-29T23:01:19.935171,compiling,model,,,
+Q024,0.20249247550964355,debug,Finished running node model.mimic.height_first_day,64737,Thread-1,2022-07-29T23:01:20.140187Z,table,2022-07-29T23:01:20.140031,height_first_day,firstday/height_first_day.sql,2022-07-29T23:01:19.935171,success,model,,,
+Q023,,debug,Began running node model.mimic.labs_first_day,64737,Thread-1,2022-07-29T23:01:20.140669Z,table,null,labs_first_day,firstday/labs_first_day.sql,2022-07-29T23:01:20.140592,started,model,,,
+Q033,,info,4 of 10 START table model public.labs_first_day ................................ [RUN],64737,Thread-1,2022-07-29T23:01:20.141325Z,table,null,labs_first_day,firstday/labs_first_day.sql,2022-07-29T23:01:20.140592,started,model,,,
+E005,,debug,"Acquiring new postgres connection ""model.mimic.labs_first_day""",64737,Thread-1,2022-07-29T23:01:20.142142Z
+Q030,,debug,Began compiling node model.mimic.labs_first_day,64737,Thread-1,2022-07-29T23:01:20.142643Z,table,null,labs_first_day,firstday/labs_first_day.sql,2022-07-29T23:01:20.140592,compiling,model,,,
+Q027,,debug,Compiling model.mimic.labs_first_day,64737,Thread-1,2022-07-29T23:01:20.142949Z
+Q028,,debug,"Writing injected SQL for node ""model.mimic.labs_first_day""",64737,Thread-1,2022-07-29T23:01:20.144247Z
+Z010,,debug,finished collecting timing info,64737,Thread-1,2022-07-29T23:01:20.144951Z
+Q031,,debug,Began executing node model.mimic.labs_first_day,64737,Thread-1,2022-07-29T23:01:20.145240Z,table,null,labs_first_day,firstday/labs_first_day.sql,null,executing,model,,,
+M012,,debug,"Writing runtime SQL for node ""model.mimic.labs_first_day""",64737,Thread-1,2022-07-29T23:01:20.155729Z
+E015,,debug,"Using postgres connection ""model.mimic.labs_first_day""",64737,Thread-1,2022-07-29T23:01:20.156684Z
+E016,,debug,On model.mimic.labs_first_day: BEGIN,64737,Thread-1,2022-07-29T23:01:20.157023Z
+E037,,debug,"Opening a new connection, currently in state closed",64737,Thread-1,2022-07-29T23:01:20.157308Z
+E017,,debug,SQL status: BEGIN in 0.01 seconds,64737,Thread-1,2022-07-29T23:01:20.167627Z
+E015,,debug,"Using postgres connection ""model.mimic.labs_first_day""",64737,Thread-1,2022-07-29T23:01:20.168066Z
+E016,,debug,"On model.mimic.labs_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.labs_first_day""} */
+
+
+  create  table ""mimic"".""public"".""labs_first_day__dbt_tmp""
+  as (
+    -- This query pivots lab values taken in the first 24 hours of a patient's stay
+
+-- Have already confirmed that the unit of measurement is always the same: null or the correct unit
+
+SELECT
+  pvt.subject_id, pvt.hadm_id, pvt.icustay_id
+
+  , min(CASE WHEN label = 'ANION GAP' THEN valuenum ELSE NULL END) AS aniongap_min
+  , max(CASE WHEN label = 'ANION GAP' THEN valuenum ELSE NULL END) AS aniongap_max
+  , min(CASE WHEN label = 'ALBUMIN' THEN valuenum ELSE NULL END) AS albumin_min
+  , max(CASE WHEN label = 'ALBUMIN' THEN valuenum ELSE NULL END) AS albumin_max
+  , min(CASE WHEN label = 'BANDS' THEN valuenum ELSE NULL END) AS bands_min
+  , max(CASE WHEN label = 'BANDS' THEN valuenum ELSE NULL END) AS bands_max
+  , min(CASE WHEN label = 'BICARBONATE' THEN valuenum ELSE NULL END) AS bicarbonate_min
+  , max(CASE WHEN label = 'BICARBONATE' THEN valuenum ELSE NULL END) AS bicarbonate_max
+  , min(CASE WHEN label = 'BILIRUBIN' THEN valuenum ELSE NULL END) AS bilirubin_min
+  , max(CASE WHEN label = 'BILIRUBIN' THEN valuenum ELSE NULL END) AS bilirubin_max
+  , min(CASE WHEN label = 'CREATININE' THEN valuenum ELSE NULL END) AS creatinine_min
+  , max(CASE WHEN label = 'CREATININE' THEN valuenum ELSE NULL END) AS creatinine_max
+  , min(CASE WHEN label = 'CHLORIDE' THEN valuenum ELSE NULL END) AS chloride_min
+  , max(CASE WHEN label = 'CHLORIDE' THEN valuenum ELSE NULL END) AS chloride_max
+  , min(CASE WHEN label = 'GLUCOSE' THEN valuenum ELSE NULL END) AS glucose_min
+  , max(CASE WHEN label = 'GLUCOSE' THEN valuenum ELSE NULL END) AS glucose_max
+  , min(CASE WHEN label = 'HEMATOCRIT' THEN valuenum ELSE NULL END) AS hematocrit_min
+  , max(CASE WHEN label = 'HEMATOCRIT' THEN valuenum ELSE NULL END) AS hematocrit_max
+  , min(CASE WHEN label = 'HEMOGLOBIN' THEN valuenum ELSE NULL END) AS hemoglobin_min
+  , max(CASE WHEN label = 'HEMOGLOBIN' THEN valuenum ELSE NULL END) AS hemoglobin_max
+  , min(CASE WHEN label = 'LACTATE' THEN valuenum ELSE NULL END) AS lactate_min
+  , max(CASE WHEN label = 'LACTATE' THEN valuenum ELSE NULL END) AS lactate_max
+  , min(CASE WHEN label = 'PLATELET' THEN valuenum ELSE NULL END) AS platelet_min
+  , max(CASE WHEN label = 'PLATELET' THEN valuenum ELSE NULL END) AS platelet_max
+  , min(CASE WHEN label = 'POTASSIUM' THEN valuenum ELSE NULL END) AS potassium_min
+  , max(CASE WHEN label = 'POTASSIUM' THEN valuenum ELSE NULL END) AS potassium_max
+  , min(CASE WHEN label = 'PTT' THEN valuenum ELSE NULL END) AS ptt_min
+  , max(CASE WHEN label = 'PTT' THEN valuenum ELSE NULL END) AS ptt_max
+  , min(CASE WHEN label = 'INR' THEN valuenum ELSE NULL END) AS inr_min
+  , max(CASE WHEN label = 'INR' THEN valuenum ELSE NULL END) AS inr_max
+  , min(CASE WHEN label = 'PT' THEN valuenum ELSE NULL END) AS pt_min
+  , max(CASE WHEN label = 'PT' THEN valuenum ELSE NULL END) AS pt_max
+  , min(CASE WHEN label = 'SODIUM' THEN valuenum ELSE NULL END) AS sodium_min
+  , max(CASE WHEN label = 'SODIUM' THEN valuenum ELSE NULL END) AS sodium_max
+  , min(CASE WHEN label = 'BUN' THEN valuenum ELSE NULL END) AS bun_min
+  , max(CASE WHEN label = 'BUN' THEN valuenum ELSE NULL END) AS bun_max
+  , min(CASE WHEN label = 'WBC' THEN valuenum ELSE NULL END) AS wbc_min
+  , max(CASE WHEN label = 'WBC' THEN valuenum ELSE NULL END) AS wbc_max
+
+
+FROM
+( -- begin query that extracts the data
+  SELECT ie.subject_id, ie.hadm_id, ie.icustay_id
+  -- here we assign labels to ITEMIDs
+  -- this also fuses together multiple ITEMIDs containing the same data
+  , CASE
+        WHEN itemid = 50868 THEN 'ANION GAP'
+        WHEN itemid = 50862 THEN 'ALBUMIN'
+        WHEN itemid = 51144 THEN 'BANDS'
+        WHEN itemid = 50882 THEN 'BICARBONATE'
+        WHEN itemid = 50885 THEN 'BILIRUBIN'
+        WHEN itemid = 50912 THEN 'CREATININE'
+        WHEN itemid = 50806 THEN 'CHLORIDE'
+        WHEN itemid = 50902 THEN 'CHLORIDE'
+        WHEN itemid = 50809 THEN 'GLUCOSE'
+        WHEN itemid = 50931 THEN 'GLUCOSE'
+        WHEN itemid = 50810 THEN 'HEMATOCRIT'
+        WHEN itemid = 51221 THEN 'HEMATOCRIT'
+        WHEN itemid = 50811 THEN 'HEMOGLOBIN'
+        WHEN itemid = 51222 THEN 'HEMOGLOBIN'
+        WHEN itemid = 50813 THEN 'LACTATE'
+        WHEN itemid = 51265 THEN 'PLATELET'
+        WHEN itemid = 50822 THEN 'POTASSIUM'
+        WHEN itemid = 50971 THEN 'POTASSIUM'
+        WHEN itemid = 51275 THEN 'PTT'
+        WHEN itemid = 51237 THEN 'INR'
+        WHEN itemid = 51274 THEN 'PT'
+        WHEN itemid = 50824 THEN 'SODIUM'
+        WHEN itemid = 50983 THEN 'SODIUM'
+        WHEN itemid = 51006 THEN 'BUN'
+        WHEN itemid = 51300 THEN 'WBC'
+        WHEN itemid = 51301 THEN 'WBC'
+      ELSE null
+    END as label
+  , -- add in some sanity checks on the values
+  -- the where clause below requires all valuenum to be > 0, so these are only upper limit checks
+    CASE
+      WHEN itemid = 50862 and valuenum >    10 THEN null -- g/dL 'ALBUMIN'
+      WHEN itemid = 50868 and valuenum > 10000 THEN null -- mEq/L 'ANION GAP'
+      WHEN itemid = 51144 and valuenum <     0 THEN null -- immature band forms, %
+      WHEN itemid = 51144 and valuenum >   100 THEN null -- immature band forms, %
+      WHEN itemid = 50882 and valuenum > 10000 THEN null -- mEq/L 'BICARBONATE'
+      WHEN itemid = 50885 and valuenum >   150 THEN null -- mg/dL 'BILIRUBIN'
+      WHEN itemid = 50806 and valuenum > 10000 THEN null -- mEq/L 'CHLORIDE'
+      WHEN itemid = 50902 and valuenum > 10000 THEN null -- mEq/L 'CHLORIDE'
+      WHEN itemid = 50912 and valuenum >   150 THEN null -- mg/dL 'CREATININE'
+      WHEN itemid = 50809 and valuenum > 10000 THEN null -- mg/dL 'GLUCOSE'
+      WHEN itemid = 50931 and valuenum > 10000 THEN null -- mg/dL 'GLUCOSE'
+      WHEN itemid = 50810 and valuenum >   100 THEN null -- % 'HEMATOCRIT'
+      WHEN itemid = 51221 and valuenum >   100 THEN null -- % 'HEMATOCRIT'
+      WHEN itemid = 50811 and valuenum >    50 THEN null -- g/dL 'HEMOGLOBIN'
+      WHEN itemid = 51222 and valuenum >    50 THEN null -- g/dL 'HEMOGLOBIN'
+      WHEN itemid = 50813 and valuenum >    50 THEN null -- mmol/L 'LACTATE'
+      WHEN itemid = 51265 and valuenum > 10000 THEN null -- K/uL 'PLATELET'
+      WHEN itemid = 50822 and valuenum >    30 THEN null -- mEq/L 'POTASSIUM'
+      WHEN itemid = 50971 and valuenum >    30 THEN null -- mEq/L 'POTASSIUM'
+      WHEN itemid = 51275 and valuenum >   150 THEN null -- sec 'PTT'
+      WHEN itemid = 51237 and valuenum >    50 THEN null -- 'INR'
+      WHEN itemid = 51274 and valuenum >   150 THEN null -- sec 'PT'
+      WHEN itemid = 50824 and valuenum >   200 THEN null -- mEq/L == mmol/L 'SODIUM'
+      WHEN itemid = 50983 and valuenum >   200 THEN null -- mEq/L == mmol/L 'SODIUM'
+      WHEN itemid = 51006 and valuenum >   300 THEN null -- 'BUN'
+      WHEN itemid = 51300 and valuenum >  1000 THEN null -- 'WBC'
+      WHEN itemid = 51301 and valuenum >  1000 THEN null -- 'WBC'
+    ELSE le.valuenum
+    END as valuenum
+
+  FROM icustays ie
+
+  LEFT JOIN labevents le
+    ON le.subject_id = ie.subject_id AND le.hadm_id = ie.hadm_id
+    AND le.charttime BETWEEN (DATETIME_SUB(ie.intime, INTERVAL '6' HOUR)) AND (DATETIME_ADD(ie.intime, INTERVAL '1' DAY))
+    AND le.ITEMID in
+    (
+      -- comment is: LABEL | CATEGORY | FLUID | NUMBER OF ROWS IN LABEVENTS
+      50868, -- ANION GAP | CHEMISTRY | BLOOD | 769895
+      50862, -- ALBUMIN | CHEMISTRY | BLOOD | 146697
+      51144, -- BANDS - hematology
+      50882, -- BICARBONATE | CHEMISTRY | BLOOD | 780733
+      50885, -- BILIRUBIN, TOTAL | CHEMISTRY | BLOOD | 238277
+      50912, -- CREATININE | CHEMISTRY | BLOOD | 797476
+      50902, -- CHLORIDE | CHEMISTRY | BLOOD | 795568
+      50806, -- CHLORIDE, WHOLE BLOOD | BLOOD GAS | BLOOD | 48187
+      50931, -- GLUCOSE | CHEMISTRY | BLOOD | 748981
+      50809, -- GLUCOSE | BLOOD GAS | BLOOD | 196734
+      51221, -- HEMATOCRIT | HEMATOLOGY | BLOOD | 881846
+      50810, -- HEMATOCRIT, CALCULATED | BLOOD GAS | BLOOD | 89715
+      51222, -- HEMOGLOBIN | HEMATOLOGY | BLOOD | 752523
+      50811, -- HEMOGLOBIN | BLOOD GAS | BLOOD | 89712
+      50813, -- LACTATE | BLOOD GAS | BLOOD | 187124
+      51265, -- PLATELET COUNT | HEMATOLOGY | BLOOD | 778444
+      50971, -- POTASSIUM | CHEMISTRY | BLOOD | 845825
+      50822, -- POTASSIUM, WHOLE BLOOD | BLOOD GAS | BLOOD | 192946
+      51275, -- PTT | HEMATOLOGY | BLOOD | 474937
+      51237, -- INR(PT) | HEMATOLOGY | BLOOD | 471183
+      51274, -- PT | HEMATOLOGY | BLOOD | 469090
+      50983, -- SODIUM | CHEMISTRY | BLOOD | 808489
+      50824, -- SODIUM, WHOLE BLOOD | BLOOD GAS | BLOOD | 71503
+      51006, -- UREA NITROGEN | CHEMISTRY | BLOOD | 791925
+      51301, -- WHITE BLOOD CELLS | HEMATOLOGY | BLOOD | 753301
+      51300  -- WBC COUNT | HEMATOLOGY | BLOOD | 2371
+    )
+    AND valuenum IS NOT null AND valuenum > 0 -- lab values cannot be 0 and cannot be negative
+) pvt
+GROUP BY pvt.subject_id, pvt.hadm_id, pvt.icustay_id
+ORDER BY pvt.subject_id, pvt.hadm_id, pvt.icustay_id
+  );",64737,Thread-1,2022-07-29T23:01:20.168551Z
+E017,,debug,SQL status: SELECT 61532 in 1.19 seconds,64737,Thread-1,2022-07-29T23:01:21.359199Z
+E015,,debug,"Using postgres connection ""model.mimic.labs_first_day""",64737,Thread-1,2022-07-29T23:01:21.365628Z
+E016,,debug,"On model.mimic.labs_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.labs_first_day""} */
+alter table ""mimic"".""public"".""labs_first_day"" rename to ""labs_first_day__dbt_backup""",64737,Thread-1,2022-07-29T23:01:21.366026Z
+E017,,debug,SQL status: ALTER TABLE in 0.0 seconds,64737,Thread-1,2022-07-29T23:01:21.367246Z
+E015,,debug,"Using postgres connection ""model.mimic.labs_first_day""",64737,Thread-1,2022-07-29T23:01:21.374103Z
+E016,,debug,"On model.mimic.labs_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.labs_first_day""} */
+alter table ""mimic"".""public"".""labs_first_day__dbt_tmp"" rename to ""labs_first_day""",64737,Thread-1,2022-07-29T23:01:21.374512Z
+E017,,debug,SQL status: ALTER TABLE in 0.0 seconds,64737,Thread-1,2022-07-29T23:01:21.375666Z
+E018,,debug,On model.mimic.labs_first_day: COMMIT,64737,Thread-1,2022-07-29T23:01:21.380295Z
+E015,,debug,"Using postgres connection ""model.mimic.labs_first_day""",64737,Thread-1,2022-07-29T23:01:21.380673Z
+E016,,debug,On model.mimic.labs_first_day: COMMIT,64737,Thread-1,2022-07-29T23:01:21.381041Z
+E017,,debug,SQL status: COMMIT in 0.01 seconds,64737,Thread-1,2022-07-29T23:01:21.387103Z
+E015,,debug,"Using postgres connection ""model.mimic.labs_first_day""",64737,Thread-1,2022-07-29T23:01:21.389394Z
+E016,,debug,"On model.mimic.labs_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.labs_first_day""} */
+drop table if exists ""mimic"".""public"".""labs_first_day__dbt_backup"" cascade",64737,Thread-1,2022-07-29T23:01:21.389638Z
+E017,,debug,SQL status: DROP TABLE in 0.0 seconds,64737,Thread-1,2022-07-29T23:01:21.392185Z
+Z010,,debug,finished collecting timing info,64737,Thread-1,2022-07-29T23:01:21.396592Z
+E010,,debug,On model.mimic.labs_first_day: Close,64737,Thread-1,2022-07-29T23:01:21.396960Z
+Z040,,debug,"Sending event: {'category': 'dbt', 'action': 'run_model', 'label': '51f6a751-a1bb-44fa-a157-e9f8f43002de', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x7f6d5d2df8e0>]}",64737,Thread-1,2022-07-29T23:01:21.398537Z
+Q012,1,info,4 of 10 OK created table model public.labs_first_day ........................... [[32mSELECT 61532[0m in 1.26s],64737,Thread-1,2022-07-29T23:01:21.399583Z,table,null,labs_first_day,firstday/labs_first_day.sql,2022-07-29T23:01:20.140592,compiling,model,,,
+Q024,1.2565009593963623,debug,Finished running node model.mimic.labs_first_day,64737,Thread-1,2022-07-29T23:01:21.400468Z,table,2022-07-29T23:01:21.400253,labs_first_day,firstday/labs_first_day.sql,2022-07-29T23:01:20.140592,success,model,,,
+Q023,,debug,Began running node model.mimic.rrt_first_day,64737,Thread-1,2022-07-29T23:01:21.401192Z,table,null,rrt_first_day,firstday/rrt_first_day.sql,2022-07-29T23:01:21.401120,started,model,,,
+Q033,,info,5 of 10 START table model public.rrt_first_day ................................. [RUN],64737,Thread-1,2022-07-29T23:01:21.401536Z,table,null,rrt_first_day,firstday/rrt_first_day.sql,2022-07-29T23:01:21.401120,started,model,,,
+E005,,debug,"Acquiring new postgres connection ""model.mimic.rrt_first_day""",64737,Thread-1,2022-07-29T23:01:21.403143Z
+Q030,,debug,Began compiling node model.mimic.rrt_first_day,64737,Thread-1,2022-07-29T23:01:21.403806Z,table,null,rrt_first_day,firstday/rrt_first_day.sql,2022-07-29T23:01:21.401120,compiling,model,,,
+Q027,,debug,Compiling model.mimic.rrt_first_day,64737,Thread-1,2022-07-29T23:01:21.404280Z
+Q028,,debug,"Writing injected SQL for node ""model.mimic.rrt_first_day""",64737,Thread-1,2022-07-29T23:01:21.406884Z
+Z010,,debug,finished collecting timing info,64737,Thread-1,2022-07-29T23:01:21.408063Z
+Q031,,debug,Began executing node model.mimic.rrt_first_day,64737,Thread-1,2022-07-29T23:01:21.408490Z,table,null,rrt_first_day,firstday/rrt_first_day.sql,null,executing,model,,,
+M012,,debug,"Writing runtime SQL for node ""model.mimic.rrt_first_day""",64737,Thread-1,2022-07-29T23:01:21.419533Z
+E015,,debug,"Using postgres connection ""model.mimic.rrt_first_day""",64737,Thread-1,2022-07-29T23:01:21.420576Z
+E016,,debug,On model.mimic.rrt_first_day: BEGIN,64737,Thread-1,2022-07-29T23:01:21.420852Z
+E037,,debug,"Opening a new connection, currently in state closed",64737,Thread-1,2022-07-29T23:01:21.421293Z
+E017,,debug,SQL status: BEGIN in 0.01 seconds,64737,Thread-1,2022-07-29T23:01:21.427838Z
+E015,,debug,"Using postgres connection ""model.mimic.rrt_first_day""",64737,Thread-1,2022-07-29T23:01:21.428223Z
+E016,,debug,"On model.mimic.rrt_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.rrt_first_day""} */
+
+
+  create  table ""mimic"".""public"".""rrt_first_day__dbt_tmp""
+  as (
+    -- determines if patients received any dialysis during their stay
+
+-- Some example aggregate queries which summarize the data here..
+-- This query estimates 6.7% of ICU patients received RRT.
+    -- select count(rrt.icustay_id) as numobs
+    -- , sum(rrt) as numrrt
+    -- , sum(case when rrt=1 then 1 else 0 end)*100.0 / count(rrt.icustay_id)
+    -- as percent_rrt
+    -- from rrt
+    -- inner join icustays ie on rrt.icustay_id = ie.icustay_id
+    -- inner join patients p
+    -- on rrt.subject_id = p.subject_id
+    -- and p.dob < ie.intime - interval '1' year
+    -- inner join admissions adm
+    -- on rrt.hadm_id = adm.hadm_id
+
+-- This query estimates that 4.6% of first ICU stays received RRT.
+    -- select
+    --   count(rrt.icustay_id) as numobs
+    --   , sum(rrt) as numrrt
+    --   , sum(case when rrt=1 then 1 else 0 end)*100.0 / count(rrt.icustay_id)
+    -- as percent_rrt
+    -- from
+    -- (
+    -- select ie.icustay_id, rrt.rrt
+    --   , ROW_NUMBER() over (partition by ie.subject_id order by ie.intime) rn
+    -- from rrt
+    -- inner join icustays ie
+    --   on rrt.icustay_id = ie.icustay_id
+    -- inner join patients p
+    --   on rrt.subject_id = p.subject_id
+    -- and p.dob < ie.intime - interval '1' year
+    -- inner join admissions adm
+    --   on rrt.hadm_id = adm.hadm_id
+    -- ) rrt
+    -- where rn = 1
+
+with cv as
+(
+  select ie.icustay_id
+    , max(
+        case
+          when ce.itemid in (152,148,149,146,147,151,150) and value is not null then 1
+          when ce.itemid in (229,235,241,247,253,259,265,271) and value = 'Dialysis Line' then 1
+          when ce.itemid = 582 and value in ('CAVH Start','CAVH D/C','CVVHD Start','CVVHD D/C','Hemodialysis st','Hemodialysis end') then 1
+        else 0 end
+        ) as RRT
+  FROM icustays ie
+  inner join chartevents ce
+    on ie.icustay_id = ce.icustay_id
+    and ce.itemid in
+    (
+       152 -- ""Dialysis Type""61449
+      ,148 -- ""Dialysis Access Site""60335
+      ,149 -- ""Dialysis Access Type""60030
+      ,146 -- ""Dialysate Flow ml/hr""57445
+      ,147 -- ""Dialysate Infusing""56605
+      ,151 -- ""Dialysis Site Appear""37345
+      ,150 -- ""Dialysis Machine""27472
+      ,229 -- INV Line#1 [Type]
+      ,235 -- INV Line#2 [Type]
+      ,241 -- INV Line#3 [Type]
+      ,247 -- INV Line#4 [Type]
+      ,253 -- INV Line#5 [Type]
+      ,259 -- INV Line#6 [Type]
+      ,265 -- INV Line#7 [Type]
+      ,271 -- INV Line#8 [Type]
+      ,582 -- Procedures
+    )
+    and ce.value is not null
+    and ce.charttime between ie.intime and DATETIME_ADD(ie.intime, INTERVAL '1' DAY)
+  where ie.dbsource = 'carevue'
+  group by ie.icustay_id
+)
+, mv_ce as
+(
+  select ie.icustay_id
+    , 1 as RRT
+  FROM icustays ie
+  inner join chartevents ce
+    on ie.icustay_id = ce.icustay_id
+    and ce.charttime between ie.intime and DATETIME_ADD(ie.intime, INTERVAL '1' DAY)
+    and itemid in
+    (
+      -- Checkboxes
+        226118 -- | Dialysis Catheter placed in outside facility      | Access Lines - Invasive | chartevents        | Checkbox
+      , 227357 -- | Dialysis Catheter Dressing Occlusive              | Access Lines - Invasive | chartevents        | Checkbox
+      , 225725 -- | Dialysis Catheter Tip Cultured                    | Access Lines - Invasive | chartevents        | Checkbox
+      -- Numeric values
+      , 226499 -- | Hemodialysis Output                               | Dialysis                | chartevents        | Numeric
+      , 224154 -- | Dialysate Rate                                    | Dialysis                | chartevents        | Numeric
+      , 225810 -- | Dwell Time (Peritoneal Dialysis)                  | Dialysis                | chartevents        | Numeric
+      , 227639 -- | Medication Added Amount  #2 (Peritoneal Dialysis) | Dialysis                | chartevents        | Numeric
+      , 225183 -- | Current Goal                     | Dialysis | chartevents        | Numeric
+      , 227438 -- | Volume not removed               | Dialysis | chartevents        | Numeric
+      , 224191 -- | Hourly Patient Fluid Removal     | Dialysis | chartevents        | Numeric
+      , 225806 -- | Volume In (PD)                   | Dialysis | chartevents        | Numeric
+      , 225807 -- | Volume Out (PD)                  | Dialysis | chartevents        | Numeric
+      , 228004 -- | Citrate (ACD-A)                  | Dialysis | chartevents        | Numeric
+      , 228005 -- | PBP (Prefilter) Replacement Rate | Dialysis | chartevents        | Numeric
+      , 228006 -- | Post Filter Replacement Rate     | Dialysis | chartevents        | Numeric
+      , 224144 -- | Blood Flow (ml/min)              | Dialysis | chartevents        | Numeric
+      , 224145 -- | Heparin Dose (per hour)          | Dialysis | chartevents        | Numeric
+      , 224149 -- | Access Pressure                  | Dialysis | chartevents        | Numeric
+      , 224150 -- | Filter Pressure                  | Dialysis | chartevents        | Numeric
+      , 224151 -- | Effluent Pressure                | Dialysis | chartevents        | Numeric
+      , 224152 -- | Return Pressure                  | Dialysis | chartevents        | Numeric
+      , 224153 -- | Replacement Rate                 | Dialysis | chartevents        | Numeric
+      , 224404 -- | ART Lumen Volume                 | Dialysis | chartevents        | Numeric
+      , 224406 -- | VEN Lumen Volume                 | Dialysis | chartevents        | Numeric
+      , 226457 -- | Ultrafiltrate Output             | Dialysis | chartevents        | Numeric
+    )
+    and valuenum > 0 -- also ensures it's not null
+  group by ie.icustay_id
+)
+, mv_ie as
+(
+  select ie.icustay_id
+    , 1 as RRT
+  FROM icustays ie
+  inner join inputevents_mv tt
+    on ie.icustay_id = tt.icustay_id
+    and tt.starttime between ie.intime and DATETIME_ADD(ie.intime, INTERVAL '1' DAY)
+    and itemid in
+    (
+        227536 --	KCl (CRRT)	Medications	inputevents_mv	Solution
+      , 227525 --	Calcium Gluconate (CRRT)	Medications	inputevents_mv	Solution
+    )
+    and amount > 0 -- also ensures it's not null
+  group by ie.icustay_id
+)
+, mv_de as
+(
+  select ie.icustay_id
+    , 1 as RRT
+  FROM icustays ie
+  inner join datetimeevents tt
+    on ie.icustay_id = tt.icustay_id
+    and tt.charttime between ie.intime and DATETIME_ADD(ie.intime, INTERVAL '1' DAY)
+    and itemid in
+    (
+      -- TODO: unsure how to handle ""Last dialysis""
+      --  225128 -- | Last dialysis                                     | Adm History/FHPA        | datetimeevents     | Date time
+        225318 -- | Dialysis Catheter Cap Change                      | Access Lines - Invasive | datetimeevents     | Date time
+      , 225319 -- | Dialysis Catheter Change over Wire Date           | Access Lines - Invasive | datetimeevents     | Date time
+      , 225321 -- | Dialysis Catheter Dressing Change                 | Access Lines - Invasive | datetimeevents     | Date time
+      , 225322 -- | Dialysis Catheter Insertion Date                  | Access Lines - Invasive | datetimeevents     | Date time
+      , 225324 -- | Dialysis CatheterTubing Change                    | Access Lines - Invasive | datetimeevents     | Date time
+    )
+  group by ie.icustay_id
+)
+, mv_pe as
+(
+    select ie.icustay_id
+      , 1 as RRT
+    FROM icustays ie
+    inner join procedureevents_mv tt
+      on ie.icustay_id = tt.icustay_id
+      and tt.starttime between ie.intime and DATETIME_ADD(ie.intime, INTERVAL '1' DAY)
+      and itemid in
+      (
+          225441 -- | Hemodialysis                                      | 4-Procedures            | procedureevents_mv | Process
+        , 225802 -- | Dialysis - CRRT                                   | Dialysis                | procedureevents_mv | Process
+        , 225803 -- | Dialysis - CVVHD                                  | Dialysis                | procedureevents_mv | Process
+        , 225805 -- | Peritoneal Dialysis                               | Dialysis                | procedureevents_mv | Process
+        , 224270 -- | Dialysis Catheter                                 | Access Lines - Invasive | procedureevents_mv | Process
+        , 225809 -- | Dialysis - CVVHDF                                 | Dialysis                | procedureevents_mv | Process
+        , 225955 -- | Dialysis - SCUF                                   | Dialysis                | procedureevents_mv | Process
+        , 225436 -- | CRRT Filter Change               | Dialysis | procedureevents_mv | Process
+      )
+    group by ie.icustay_id
+)
+select ie.subject_id, ie.hadm_id, ie.icustay_id
+  , case
+      when cv.RRT = 1 then 1
+      when mv_ce.RRT = 1 then 1
+      when mv_ie.RRT = 1 then 1
+      when mv_de.RRT = 1 then 1
+      when mv_pe.RRT = 1 then 1
+      else 0
+    end as rrt
+FROM icustays ie
+left join cv
+  on ie.icustay_id = cv.icustay_id
+left join mv_ce
+  on ie.icustay_id = mv_ce.icustay_id
+left join mv_ie
+  on ie.icustay_id = mv_ie.icustay_id
+left join mv_de
+  on ie.icustay_id = mv_de.icustay_id
+left join mv_pe
+  on ie.icustay_id = mv_pe.icustay_id
+order by ie.icustay_id
+  );",64737,Thread-1,2022-07-29T23:01:21.428625Z
+E017,,debug,SQL status: SELECT 61532 in 0.28 seconds,64737,Thread-1,2022-07-29T23:01:21.707501Z
+E015,,debug,"Using postgres connection ""model.mimic.rrt_first_day""",64737,Thread-1,2022-07-29T23:01:21.717420Z
+E016,,debug,"On model.mimic.rrt_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.rrt_first_day""} */
+alter table ""mimic"".""public"".""rrt_first_day"" rename to ""rrt_first_day__dbt_backup""",64737,Thread-1,2022-07-29T23:01:21.718078Z
+E017,,debug,SQL status: ALTER TABLE in 0.0 seconds,64737,Thread-1,2022-07-29T23:01:21.719097Z
+E015,,debug,"Using postgres connection ""model.mimic.rrt_first_day""",64737,Thread-1,2022-07-29T23:01:21.722797Z
+E016,,debug,"On model.mimic.rrt_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.rrt_first_day""} */
+alter table ""mimic"".""public"".""rrt_first_day__dbt_tmp"" rename to ""rrt_first_day""",64737,Thread-1,2022-07-29T23:01:21.723118Z
+E017,,debug,SQL status: ALTER TABLE in 0.0 seconds,64737,Thread-1,2022-07-29T23:01:21.724019Z
+E018,,debug,On model.mimic.rrt_first_day: COMMIT,64737,Thread-1,2022-07-29T23:01:21.727217Z
+E015,,debug,"Using postgres connection ""model.mimic.rrt_first_day""",64737,Thread-1,2022-07-29T23:01:21.727448Z
+E016,,debug,On model.mimic.rrt_first_day: COMMIT,64737,Thread-1,2022-07-29T23:01:21.727688Z
+E017,,debug,SQL status: COMMIT in 0.01 seconds,64737,Thread-1,2022-07-29T23:01:21.733871Z
+E015,,debug,"Using postgres connection ""model.mimic.rrt_first_day""",64737,Thread-1,2022-07-29T23:01:21.736253Z
+E016,,debug,"On model.mimic.rrt_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.rrt_first_day""} */
+drop table if exists ""mimic"".""public"".""rrt_first_day__dbt_backup"" cascade",64737,Thread-1,2022-07-29T23:01:21.736492Z
+E017,,debug,SQL status: DROP TABLE in 0.0 seconds,64737,Thread-1,2022-07-29T23:01:21.738501Z
+Z010,,debug,finished collecting timing info,64737,Thread-1,2022-07-29T23:01:21.741652Z
+E010,,debug,On model.mimic.rrt_first_day: Close,64737,Thread-1,2022-07-29T23:01:21.742107Z
+Z040,,debug,"Sending event: {'category': 'dbt', 'action': 'run_model', 'label': '51f6a751-a1bb-44fa-a157-e9f8f43002de', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x7f6d5d2df730>]}",64737,Thread-1,2022-07-29T23:01:21.742930Z
+Q012,0,info,5 of 10 OK created table model public.rrt_first_day ............................ [[32mSELECT 61532[0m in 0.34s],64737,Thread-1,2022-07-29T23:01:21.743433Z,table,null,rrt_first_day,firstday/rrt_first_day.sql,2022-07-29T23:01:21.401120,compiling,model,,,
+Q024,0.34038305282592773,debug,Finished running node model.mimic.rrt_first_day,64737,Thread-1,2022-07-29T23:01:21.744046Z,table,2022-07-29T23:01:21.743877,rrt_first_day,firstday/rrt_first_day.sql,2022-07-29T23:01:21.401120,success,model,,,
+Q023,,debug,Began running node model.mimic.urine_output_first_day,64737,Thread-1,2022-07-29T23:01:21.744824Z,table,null,urine_output_first_day,firstday/urine_output_first_day.sql,2022-07-29T23:01:21.744760,started,model,,,
+Q033,,info,6 of 10 START table model public.urine_output_first_day ........................ [RUN],64737,Thread-1,2022-07-29T23:01:21.745308Z,table,null,urine_output_first_day,firstday/urine_output_first_day.sql,2022-07-29T23:01:21.744760,started,model,,,
+E005,,debug,"Acquiring new postgres connection ""model.mimic.urine_output_first_day""",64737,Thread-1,2022-07-29T23:01:21.746014Z
+Q030,,debug,Began compiling node model.mimic.urine_output_first_day,64737,Thread-1,2022-07-29T23:01:21.746599Z,table,null,urine_output_first_day,firstday/urine_output_first_day.sql,2022-07-29T23:01:21.744760,compiling,model,,,
+Q027,,debug,Compiling model.mimic.urine_output_first_day,64737,Thread-1,2022-07-29T23:01:21.746887Z
+Q028,,debug,"Writing injected SQL for node ""model.mimic.urine_output_first_day""",64737,Thread-1,2022-07-29T23:01:21.748145Z
+Z010,,debug,finished collecting timing info,64737,Thread-1,2022-07-29T23:01:21.748615Z
+Q031,,debug,Began executing node model.mimic.urine_output_first_day,64737,Thread-1,2022-07-29T23:01:21.748748Z,table,null,urine_output_first_day,firstday/urine_output_first_day.sql,null,executing,model,,,
+M012,,debug,"Writing runtime SQL for node ""model.mimic.urine_output_first_day""",64737,Thread-1,2022-07-29T23:01:21.760532Z
+E015,,debug,"Using postgres connection ""model.mimic.urine_output_first_day""",64737,Thread-1,2022-07-29T23:01:21.761347Z
+E016,,debug,On model.mimic.urine_output_first_day: BEGIN,64737,Thread-1,2022-07-29T23:01:21.761583Z
+E037,,debug,"Opening a new connection, currently in state closed",64737,Thread-1,2022-07-29T23:01:21.761873Z
+E017,,debug,SQL status: BEGIN in 0.01 seconds,64737,Thread-1,2022-07-29T23:01:21.771264Z
+E015,,debug,"Using postgres connection ""model.mimic.urine_output_first_day""",64737,Thread-1,2022-07-29T23:01:21.771735Z
+E016,,debug,"On model.mimic.urine_output_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.urine_output_first_day""} */
+
+
+  create  table ""mimic"".""public"".""urine_output_first_day__dbt_tmp""
+  as (
+    -- ------------------------------------------------------------------
+-- Purpose: Create a view of the urine output for each ICUSTAY_ID over the first 24 hours.
+-- ------------------------------------------------------------------
+
+select
+  -- patient identifiers
+  ie.subject_id, ie.hadm_id, ie.icustay_id
+
+  -- volumes associated with urine output ITEMIDs
+  , sum(
+      -- we consider input of GU irrigant as a negative volume
+      case
+        when oe.itemid = 227488 and oe.value > 0 then -1*oe.value
+        else oe.value
+    end) as urineoutput
+FROM icustays ie
+-- Join to the outputevents table to get urine output
+left join outputevents oe
+-- join on all patient identifiers
+on ie.subject_id = oe.subject_id and ie.hadm_id = oe.hadm_id and ie.icustay_id = oe.icustay_id
+-- and ensure the data occurs during the first day
+and oe.charttime between ie.intime and (DATETIME_ADD(ie.intime, INTERVAL '1' DAY)) -- first ICU day
+where itemid in
+(
+-- these are the most frequently occurring urine output observations in CareVue
+40055, -- ""Urine Out Foley""
+43175, -- ""Urine .""
+40069, -- ""Urine Out Void""
+40094, -- ""Urine Out Condom Cath""
+40715, -- ""Urine Out Suprapubic""
+40473, -- ""Urine Out IleoConduit""
+40085, -- ""Urine Out Incontinent""
+40057, -- ""Urine Out Rt Nephrostomy""
+40056, -- ""Urine Out Lt Nephrostomy""
+40405, -- ""Urine Out Other""
+40428, -- ""Urine Out Straight Cath""
+40086,--	Urine Out Incontinent
+40096, -- ""Urine Out Ureteral Stent #1""
+40651, -- ""Urine Out Ureteral Stent #2""
+
+-- these are the most frequently occurring urine output observations in MetaVision
+226559, -- ""Foley""
+226560, -- ""Void""
+226561, -- ""Condom Cath""
+226584, -- ""Ileoconduit""
+226563, -- ""Suprapubic""
+226564, -- ""R Nephrostomy""
+226565, -- ""L Nephrostomy""
+226567, --	Straight Cath
+226557, -- R Ureteral Stent
+226558, -- L Ureteral Stent
+227488, -- GU Irrigant Volume In
+227489  -- GU Irrigant/Urine Volume Out
+)
+group by ie.subject_id, ie.hadm_id, ie.icustay_id
+order by ie.subject_id, ie.hadm_id, ie.icustay_id
+  );",64737,Thread-1,2022-07-29T23:01:21.771929Z
+E017,,debug,SQL status: SELECT 53359 in 3.11 seconds,64737,Thread-1,2022-07-29T23:01:24.879905Z
+E015,,debug,"Using postgres connection ""model.mimic.urine_output_first_day""",64737,Thread-1,2022-07-29T23:01:24.885123Z
+E016,,debug,"On model.mimic.urine_output_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.urine_output_first_day""} */
+alter table ""mimic"".""public"".""urine_output_first_day"" rename to ""urine_output_first_day__dbt_backup""",64737,Thread-1,2022-07-29T23:01:24.885424Z
+E017,,debug,SQL status: ALTER TABLE in 0.0 seconds,64737,Thread-1,2022-07-29T23:01:24.886308Z
+E015,,debug,"Using postgres connection ""model.mimic.urine_output_first_day""",64737,Thread-1,2022-07-29T23:01:24.891277Z
+E016,,debug,"On model.mimic.urine_output_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.urine_output_first_day""} */
+alter table ""mimic"".""public"".""urine_output_first_day__dbt_tmp"" rename to ""urine_output_first_day""",64737,Thread-1,2022-07-29T23:01:24.891739Z
+E017,,debug,SQL status: ALTER TABLE in 0.0 seconds,64737,Thread-1,2022-07-29T23:01:24.892866Z
+E018,,debug,On model.mimic.urine_output_first_day: COMMIT,64737,Thread-1,2022-07-29T23:01:24.896370Z
+E015,,debug,"Using postgres connection ""model.mimic.urine_output_first_day""",64737,Thread-1,2022-07-29T23:01:24.896653Z
+E016,,debug,On model.mimic.urine_output_first_day: COMMIT,64737,Thread-1,2022-07-29T23:01:24.896782Z
+E017,,debug,SQL status: COMMIT in 0.01 seconds,64737,Thread-1,2022-07-29T23:01:24.902212Z
+E015,,debug,"Using postgres connection ""model.mimic.urine_output_first_day""",64737,Thread-1,2022-07-29T23:01:24.905062Z
+E016,,debug,"On model.mimic.urine_output_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.urine_output_first_day""} */
+drop table if exists ""mimic"".""public"".""urine_output_first_day__dbt_backup"" cascade",64737,Thread-1,2022-07-29T23:01:24.905277Z
+E017,,debug,SQL status: DROP TABLE in 0.0 seconds,64737,Thread-1,2022-07-29T23:01:24.907574Z
+Z010,,debug,finished collecting timing info,64737,Thread-1,2022-07-29T23:01:24.911550Z
+E010,,debug,On model.mimic.urine_output_first_day: Close,64737,Thread-1,2022-07-29T23:01:24.911868Z
+Z040,,debug,"Sending event: {'category': 'dbt', 'action': 'run_model', 'label': '51f6a751-a1bb-44fa-a157-e9f8f43002de', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x7f6d5f5ca490>]}",64737,Thread-1,2022-07-29T23:01:24.912620Z
+Q012,3,info,6 of 10 OK created table model public.urine_output_first_day ................... [[32mSELECT 53359[0m in 3.17s],64737,Thread-1,2022-07-29T23:01:24.913034Z,table,null,urine_output_first_day,firstday/urine_output_first_day.sql,2022-07-29T23:01:21.744760,compiling,model,,,
+Q024,3.166973114013672,debug,Finished running node model.mimic.urine_output_first_day,64737,Thread-1,2022-07-29T23:01:24.913414Z,table,2022-07-29T23:01:24.913287,urine_output_first_day,firstday/urine_output_first_day.sql,2022-07-29T23:01:21.744760,success,model,,,
+Q023,,debug,Began running node model.mimic.ventilation_first_day,64737,Thread-1,2022-07-29T23:01:24.913721Z,table,null,ventilation_first_day,firstday/ventilation_first_day.sql,2022-07-29T23:01:24.913673,started,model,,,
+Q033,,info,7 of 10 START table model public.ventilation_first_day ......................... [RUN],64737,Thread-1,2022-07-29T23:01:24.914652Z,table,null,ventilation_first_day,firstday/ventilation_first_day.sql,2022-07-29T23:01:24.913673,started,model,,,
+E005,,debug,"Acquiring new postgres connection ""model.mimic.ventilation_first_day""",64737,Thread-1,2022-07-29T23:01:24.915658Z
+Q030,,debug,Began compiling node model.mimic.ventilation_first_day,64737,Thread-1,2022-07-29T23:01:24.916096Z,table,null,ventilation_first_day,firstday/ventilation_first_day.sql,2022-07-29T23:01:24.913673,compiling,model,,,
+Q027,,debug,Compiling model.mimic.ventilation_first_day,64737,Thread-1,2022-07-29T23:01:24.916404Z
+Q028,,debug,"Writing injected SQL for node ""model.mimic.ventilation_first_day""",64737,Thread-1,2022-07-29T23:01:24.919458Z
+Z010,,debug,finished collecting timing info,64737,Thread-1,2022-07-29T23:01:24.920387Z
+Q031,,debug,Began executing node model.mimic.ventilation_first_day,64737,Thread-1,2022-07-29T23:01:24.921304Z,table,null,ventilation_first_day,firstday/ventilation_first_day.sql,null,executing,model,,,
+M012,,debug,"Writing runtime SQL for node ""model.mimic.ventilation_first_day""",64737,Thread-1,2022-07-29T23:01:24.931913Z
+E015,,debug,"Using postgres connection ""model.mimic.ventilation_first_day""",64737,Thread-1,2022-07-29T23:01:24.933109Z
+E016,,debug,On model.mimic.ventilation_first_day: BEGIN,64737,Thread-1,2022-07-29T23:01:24.934367Z
+E037,,debug,"Opening a new connection, currently in state closed",64737,Thread-1,2022-07-29T23:01:24.935292Z
+E017,,debug,SQL status: BEGIN in 0.01 seconds,64737,Thread-1,2022-07-29T23:01:24.947049Z
+E015,,debug,"Using postgres connection ""model.mimic.ventilation_first_day""",64737,Thread-1,2022-07-29T23:01:24.947400Z
+E016,,debug,"On model.mimic.ventilation_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.ventilation_first_day""} */
+
+
+  create  table ""mimic"".""public"".""ventilation_first_day__dbt_tmp""
+  as (
+    -- Determines if a patient is ventilated on the first day of their ICU stay.
+-- Creates a table with the result.
+-- Requires the ventilation_durations table, generated by ../ventilation-durations.sql
+
+select
+  ie.subject_id, ie.hadm_id, ie.icustay_id
+  -- if vd.icustay_id is not null, then they have a valid ventilation event
+  -- in this case, we say they are ventilated
+  -- otherwise, they are not
+  , max(case
+      when vd.icustay_id is not null then 1
+    else 0 end) as vent
+FROM icustays ie
+left join ""mimic"".""public"".""ventilation_durations"" vd
+  on ie.icustay_id = vd.icustay_id
+  and
+  (
+    -- ventilation duration overlaps with ICU admission -> vented on admission
+    (vd.starttime <= ie.intime and vd.endtime >= ie.intime)
+    -- ventilation started during the first day
+    OR (vd.starttime >= ie.intime and vd.starttime <= DATETIME_ADD(ie.intime, INTERVAL '1' DAY))
+  )
+group by ie.subject_id, ie.hadm_id, ie.icustay_id
+order by ie.subject_id, ie.hadm_id, ie.icustay_id
+  );",64737,Thread-1,2022-07-29T23:01:24.947924Z
+E017,,debug,SQL status: SELECT 61532 in 0.12 seconds,64737,Thread-1,2022-07-29T23:01:25.071625Z
+E015,,debug,"Using postgres connection ""model.mimic.ventilation_first_day""",64737,Thread-1,2022-07-29T23:01:25.078115Z
+E016,,debug,"On model.mimic.ventilation_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.ventilation_first_day""} */
+alter table ""mimic"".""public"".""ventilation_first_day"" rename to ""ventilation_first_day__dbt_backup""",64737,Thread-1,2022-07-29T23:01:25.078575Z
+E017,,debug,SQL status: ALTER TABLE in 0.0 seconds,64737,Thread-1,2022-07-29T23:01:25.079879Z
+E015,,debug,"Using postgres connection ""model.mimic.ventilation_first_day""",64737,Thread-1,2022-07-29T23:01:25.085286Z
+E016,,debug,"On model.mimic.ventilation_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.ventilation_first_day""} */
+alter table ""mimic"".""public"".""ventilation_first_day__dbt_tmp"" rename to ""ventilation_first_day""",64737,Thread-1,2022-07-29T23:01:25.085526Z
+E017,,debug,SQL status: ALTER TABLE in 0.0 seconds,64737,Thread-1,2022-07-29T23:01:25.086497Z
+E018,,debug,On model.mimic.ventilation_first_day: COMMIT,64737,Thread-1,2022-07-29T23:01:25.089292Z
+E015,,debug,"Using postgres connection ""model.mimic.ventilation_first_day""",64737,Thread-1,2022-07-29T23:01:25.089498Z
+E016,,debug,On model.mimic.ventilation_first_day: COMMIT,64737,Thread-1,2022-07-29T23:01:25.089920Z
+E017,,debug,SQL status: COMMIT in 0.0 seconds,64737,Thread-1,2022-07-29T23:01:25.094389Z
+E015,,debug,"Using postgres connection ""model.mimic.ventilation_first_day""",64737,Thread-1,2022-07-29T23:01:25.096402Z
+E016,,debug,"On model.mimic.ventilation_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.ventilation_first_day""} */
+drop table if exists ""mimic"".""public"".""ventilation_first_day__dbt_backup"" cascade",64737,Thread-1,2022-07-29T23:01:25.096611Z
+E017,,debug,SQL status: DROP TABLE in 0.0 seconds,64737,Thread-1,2022-07-29T23:01:25.098744Z
+Z010,,debug,finished collecting timing info,64737,Thread-1,2022-07-29T23:01:25.101320Z
+E010,,debug,On model.mimic.ventilation_first_day: Close,64737,Thread-1,2022-07-29T23:01:25.101555Z
+Z040,,debug,"Sending event: {'category': 'dbt', 'action': 'run_model', 'label': '51f6a751-a1bb-44fa-a157-e9f8f43002de', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x7f6d5d2dfc10>]}",64737,Thread-1,2022-07-29T23:01:25.102475Z
+Q012,0,info,7 of 10 OK created table model public.ventilation_first_day .................... [[32mSELECT 61532[0m in 0.19s],64737,Thread-1,2022-07-29T23:01:25.102995Z,table,null,ventilation_first_day,firstday/ventilation_first_day.sql,2022-07-29T23:01:24.913673,compiling,model,,,
+Q024,0.18722987174987793,debug,Finished running node model.mimic.ventilation_first_day,64737,Thread-1,2022-07-29T23:01:25.103686Z,table,2022-07-29T23:01:25.103464,ventilation_first_day,firstday/ventilation_first_day.sql,2022-07-29T23:01:24.913673,success,model,,,
+Q023,,debug,Began running node model.mimic.vitals_first_day,64737,Thread-1,2022-07-29T23:01:25.104211Z,table,null,vitals_first_day,firstday/vitals_first_day.sql,2022-07-29T23:01:25.104115,started,model,,,
+Q033,,info,8 of 10 START table model public.vitals_first_day .............................. [RUN],64737,Thread-1,2022-07-29T23:01:25.104965Z,table,null,vitals_first_day,firstday/vitals_first_day.sql,2022-07-29T23:01:25.104115,started,model,,,
+E005,,debug,"Acquiring new postgres connection ""model.mimic.vitals_first_day""",64737,Thread-1,2022-07-29T23:01:25.105948Z
+Q030,,debug,Began compiling node model.mimic.vitals_first_day,64737,Thread-1,2022-07-29T23:01:25.106405Z,table,null,vitals_first_day,firstday/vitals_first_day.sql,2022-07-29T23:01:25.104115,compiling,model,,,
+Q027,,debug,Compiling model.mimic.vitals_first_day,64737,Thread-1,2022-07-29T23:01:25.106699Z
+Q028,,debug,"Writing injected SQL for node ""model.mimic.vitals_first_day""",64737,Thread-1,2022-07-29T23:01:25.108526Z
+Z010,,debug,finished collecting timing info,64737,Thread-1,2022-07-29T23:01:25.109291Z
+Q031,,debug,Began executing node model.mimic.vitals_first_day,64737,Thread-1,2022-07-29T23:01:25.109586Z,table,null,vitals_first_day,firstday/vitals_first_day.sql,null,executing,model,,,
+M012,,debug,"Writing runtime SQL for node ""model.mimic.vitals_first_day""",64737,Thread-1,2022-07-29T23:01:25.126925Z
+E015,,debug,"Using postgres connection ""model.mimic.vitals_first_day""",64737,Thread-1,2022-07-29T23:01:25.128566Z
+E016,,debug,On model.mimic.vitals_first_day: BEGIN,64737,Thread-1,2022-07-29T23:01:25.129167Z
+E037,,debug,"Opening a new connection, currently in state closed",64737,Thread-1,2022-07-29T23:01:25.129589Z
+E017,,debug,SQL status: BEGIN in 0.01 seconds,64737,Thread-1,2022-07-29T23:01:25.136808Z
+E015,,debug,"Using postgres connection ""model.mimic.vitals_first_day""",64737,Thread-1,2022-07-29T23:01:25.137185Z
+E016,,debug,"On model.mimic.vitals_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.vitals_first_day""} */
+
+
+  create  table ""mimic"".""public"".""vitals_first_day__dbt_tmp""
+  as (
+    -- This query pivots the vital signs for the first 24 hours of a patient's stay
+-- Vital signs include heart rate, blood pressure, respiration rate, and temperature
+
+SELECT pvt.subject_id, pvt.hadm_id, pvt.icustay_id
+
+-- Easier names
+, min(case when VitalID = 1 then valuenum ELSE NULL END) AS heartrate_min
+, max(case when VitalID = 1 then valuenum ELSE NULL END) AS heartrate_max
+, avg(case when VitalID = 1 then valuenum ELSE NULL END) AS heartrate_mean
+, min(case when VitalID = 2 then valuenum ELSE NULL END) AS sysbp_min
+, max(case when VitalID = 2 then valuenum ELSE NULL END) AS sysbp_max
+, avg(case when VitalID = 2 then valuenum ELSE NULL END) AS sysbp_mean
+, min(case when VitalID = 3 then valuenum ELSE NULL END) AS diasbp_min
+, max(case when VitalID = 3 then valuenum ELSE NULL END) AS diasbp_max
+, avg(case when VitalID = 3 then valuenum ELSE NULL END) AS diasbp_mean
+, min(case when VitalID = 4 then valuenum ELSE NULL END) AS meanbp_min
+, max(case when VitalID = 4 then valuenum ELSE NULL END) AS meanbp_max
+, avg(case when VitalID = 4 then valuenum ELSE NULL END) AS meanbp_mean
+, min(case when VitalID = 5 then valuenum ELSE NULL END) AS resprate_min
+, max(case when VitalID = 5 then valuenum ELSE NULL END) AS resprate_max
+, avg(case when VitalID = 5 then valuenum ELSE NULL END) AS resprate_mean
+, min(case when VitalID = 6 then valuenum ELSE NULL END) AS tempc_min
+, max(case when VitalID = 6 then valuenum ELSE NULL END) AS tempc_max
+, avg(case when VitalID = 6 then valuenum ELSE NULL END) AS tempc_mean
+, min(case when VitalID = 7 then valuenum ELSE NULL END) AS spo2_min
+, max(case when VitalID = 7 then valuenum ELSE NULL END) AS spo2_max
+, avg(case when VitalID = 7 then valuenum ELSE NULL END) AS spo2_mean
+, min(case when VitalID = 8 then valuenum ELSE NULL END) AS glucose_min
+, max(case when VitalID = 8 then valuenum ELSE NULL END) AS glucose_max
+, avg(case when VitalID = 8 then valuenum ELSE NULL END) AS glucose_mean
+
+FROM  (
+  select ie.subject_id, ie.hadm_id, ie.icustay_id
+  , case
+    when itemid in (211,220045) and valuenum > 0 and valuenum < 300 then 1 -- HeartRate
+    when itemid in (51,442,455,6701,220179,220050) and valuenum > 0 and valuenum < 400 then 2 -- SysBP
+    when itemid in (8368,8440,8441,8555,220180,220051) and valuenum > 0 and valuenum < 300 then 3 -- DiasBP
+    when itemid in (456,52,6702,443,220052,220181,225312) and valuenum > 0 and valuenum < 300 then 4 -- MeanBP
+    when itemid in (615,618,220210,224690) and valuenum > 0 and valuenum < 70 then 5 -- RespRate
+    when itemid in (223761,678) and valuenum > 70 and valuenum < 120  then 6 -- TempF, converted to degC in valuenum call
+    when itemid in (223762,676) and valuenum > 10 and valuenum < 50  then 6 -- TempC
+    when itemid in (646,220277) and valuenum > 0 and valuenum <= 100 then 7 -- SpO2
+    when itemid in (807,811,1529,3745,3744,225664,220621,226537) and valuenum > 0 then 8 -- Glucose
+
+    else null end as vitalid
+      -- convert F to C
+  , case when itemid in (223761,678) then (valuenum-32)/1.8 else valuenum end as valuenum
+
+  from icustays ie
+  left join chartevents ce
+  on ie.icustay_id = ce.icustay_id
+  and ce.charttime between ie.intime and DATETIME_ADD(ie.intime, INTERVAL '1 DAY')
+  and DATETIME_DIFF(ce.charttime, ie.intime, 'SECOND') > 0
+  and DATETIME_DIFF(ce.charttime, ie.intime, 'HOUR') <= 24
+  -- exclude rows marked as error
+  and (ce.error IS NULL or ce.error = 0)
+  where ce.itemid in
+  (
+  -- HEART RATE
+  211, --""Heart Rate""
+  220045, --""Heart Rate""
+
+  -- Systolic/diastolic
+
+  51, --	Arterial BP [Systolic]
+  442, --	Manual BP [Systolic]
+  455, --	NBP [Systolic]
+  6701, --	Arterial BP #2 [Systolic]
+  220179, --	Non Invasive Blood Pressure systolic
+  220050, --	Arterial Blood Pressure systolic
+
+  8368, --	Arterial BP [Diastolic]
+  8440, --	Manual BP [Diastolic]
+  8441, --	NBP [Diastolic]
+  8555, --	Arterial BP #2 [Diastolic]
+  220180, --	Non Invasive Blood Pressure diastolic
+  220051, --	Arterial Blood Pressure diastolic
+
+
+  -- MEAN ARTERIAL PRESSURE
+  456, --""NBP Mean""
+  52, --""Arterial BP Mean""
+  6702, --	Arterial BP Mean #2
+  443, --	Manual BP Mean(calc)
+  220052, --""Arterial Blood Pressure mean""
+  220181, --""Non Invasive Blood Pressure mean""
+  225312, --""ART BP mean""
+
+  -- RESPIRATORY RATE
+  618,--	Respiratory Rate
+  615,--	Resp Rate (Total)
+  220210,--	Respiratory Rate
+  224690, --	Respiratory Rate (Total)
+
+
+  -- SPO2, peripheral
+  646, 220277,
+
+  -- GLUCOSE, both lab and fingerstick
+  807,--	Fingerstick Glucose
+  811,--	Glucose (70-105)
+  1529,--	Glucose
+  3745,--	BloodGlucose
+  3744,--	Blood Glucose
+  225664,--	Glucose finger stick
+  220621,--	Glucose (serum)
+  226537,--	Glucose (whole blood)
+
+  -- TEMPERATURE
+  223762, -- ""Temperature Celsius""
+  676,	-- ""Temperature C""
+  223761, -- ""Temperature Fahrenheit""
+  678 --	""Temperature F""
+
+  )
+) pvt
+group by pvt.subject_id, pvt.hadm_id, pvt.icustay_id
+order by pvt.subject_id, pvt.hadm_id, pvt.icustay_id
+  );",64737,Thread-1,2022-07-29T23:01:25.138271Z
+E017,,debug,SQL status: SELECT 0 in 0.03 seconds,64737,Thread-1,2022-07-29T23:01:25.165251Z
+E015,,debug,"Using postgres connection ""model.mimic.vitals_first_day""",64737,Thread-1,2022-07-29T23:01:25.174316Z
+E016,,debug,"On model.mimic.vitals_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.vitals_first_day""} */
+alter table ""mimic"".""public"".""vitals_first_day"" rename to ""vitals_first_day__dbt_backup""",64737,Thread-1,2022-07-29T23:01:25.174757Z
+E017,,debug,SQL status: ALTER TABLE in 0.0 seconds,64737,Thread-1,2022-07-29T23:01:25.176375Z
+E015,,debug,"Using postgres connection ""model.mimic.vitals_first_day""",64737,Thread-1,2022-07-29T23:01:25.188039Z
+E016,,debug,"On model.mimic.vitals_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.vitals_first_day""} */
+alter table ""mimic"".""public"".""vitals_first_day__dbt_tmp"" rename to ""vitals_first_day""",64737,Thread-1,2022-07-29T23:01:25.188478Z
+E017,,debug,SQL status: ALTER TABLE in 0.0 seconds,64737,Thread-1,2022-07-29T23:01:25.190288Z
+E018,,debug,On model.mimic.vitals_first_day: COMMIT,64737,Thread-1,2022-07-29T23:01:25.200129Z
+E015,,debug,"Using postgres connection ""model.mimic.vitals_first_day""",64737,Thread-1,2022-07-29T23:01:25.200486Z
+E016,,debug,On model.mimic.vitals_first_day: COMMIT,64737,Thread-1,2022-07-29T23:01:25.200818Z
+E017,,debug,SQL status: COMMIT in 0.0 seconds,64737,Thread-1,2022-07-29T23:01:25.203884Z
+E015,,debug,"Using postgres connection ""model.mimic.vitals_first_day""",64737,Thread-1,2022-07-29T23:01:25.208029Z
+E016,,debug,"On model.mimic.vitals_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.vitals_first_day""} */
+drop table if exists ""mimic"".""public"".""vitals_first_day__dbt_backup"" cascade",64737,Thread-1,2022-07-29T23:01:25.208342Z
+E017,,debug,SQL status: DROP TABLE in 0.0 seconds,64737,Thread-1,2022-07-29T23:01:25.211162Z
+Z010,,debug,finished collecting timing info,64737,Thread-1,2022-07-29T23:01:25.215531Z
+E010,,debug,On model.mimic.vitals_first_day: Close,64737,Thread-1,2022-07-29T23:01:25.215859Z
+Z040,,debug,"Sending event: {'category': 'dbt', 'action': 'run_model', 'label': '51f6a751-a1bb-44fa-a157-e9f8f43002de', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x7f6d5d2dfd90>]}",64737,Thread-1,2022-07-29T23:01:25.217018Z
+Q012,0,info,8 of 10 OK created table model public.vitals_first_day ......................... [[32mSELECT 0[0m in 0.11s],64737,Thread-1,2022-07-29T23:01:25.217544Z,table,null,vitals_first_day,firstday/vitals_first_day.sql,2022-07-29T23:01:25.104115,compiling,model,,,
+Q024,0.11147713661193848,debug,Finished running node model.mimic.vitals_first_day,64737,Thread-1,2022-07-29T23:01:25.218794Z,table,2022-07-29T23:01:25.218572,vitals_first_day,firstday/vitals_first_day.sql,2022-07-29T23:01:25.104115,success,model,,,
+Q023,,debug,Began running node model.mimic.weight_first_day,64737,Thread-1,2022-07-29T23:01:25.219741Z,table,null,weight_first_day,firstday/weight_first_day.sql,2022-07-29T23:01:25.219681,started,model,,,
+Q033,,info,9 of 10 START table model public.weight_first_day .............................. [RUN],64737,Thread-1,2022-07-29T23:01:25.220878Z,table,null,weight_first_day,firstday/weight_first_day.sql,2022-07-29T23:01:25.219681,started,model,,,
+E005,,debug,"Acquiring new postgres connection ""model.mimic.weight_first_day""",64737,Thread-1,2022-07-29T23:01:25.222016Z
+Q030,,debug,Began compiling node model.mimic.weight_first_day,64737,Thread-1,2022-07-29T23:01:25.222411Z,table,null,weight_first_day,firstday/weight_first_day.sql,2022-07-29T23:01:25.219681,compiling,model,,,
+Q027,,debug,Compiling model.mimic.weight_first_day,64737,Thread-1,2022-07-29T23:01:25.222757Z
+Q028,,debug,"Writing injected SQL for node ""model.mimic.weight_first_day""",64737,Thread-1,2022-07-29T23:01:25.226785Z
+Z010,,debug,finished collecting timing info,64737,Thread-1,2022-07-29T23:01:25.227568Z
+Q031,,debug,Began executing node model.mimic.weight_first_day,64737,Thread-1,2022-07-29T23:01:25.227994Z,table,null,weight_first_day,firstday/weight_first_day.sql,null,executing,model,,,
+M012,,debug,"Writing runtime SQL for node ""model.mimic.weight_first_day""",64737,Thread-1,2022-07-29T23:01:25.243033Z
+E015,,debug,"Using postgres connection ""model.mimic.weight_first_day""",64737,Thread-1,2022-07-29T23:01:25.243887Z
+E016,,debug,On model.mimic.weight_first_day: BEGIN,64737,Thread-1,2022-07-29T23:01:25.244174Z
+E037,,debug,"Opening a new connection, currently in state closed",64737,Thread-1,2022-07-29T23:01:25.244332Z
+E017,,debug,SQL status: BEGIN in 0.01 seconds,64737,Thread-1,2022-07-29T23:01:25.255267Z
+E015,,debug,"Using postgres connection ""model.mimic.weight_first_day""",64737,Thread-1,2022-07-29T23:01:25.256259Z
+E016,,debug,"On model.mimic.weight_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.weight_first_day""} */
+
+
+  create  table ""mimic"".""public"".""weight_first_day__dbt_tmp""
+  as (
+    -- This query extracts weights for adult ICU patients on their first ICU day.
+-- It does *not* use any information after the first ICU day, as weight is
+-- sometimes used to monitor fluid balance.
+
+-- ** Requires the echodata view, generated by concepts/echo-data.sql
+
+with ce as
+(
+    SELECT
+      c.icustay_id
+      -- we take the avg value from roughly first day
+      -- TODO: eliminate obvious outliers if there is a reasonable weight
+      -- (e.g. weight of 180kg and 90kg would remove 180kg instead of taking the median)
+      , AVG(VALUENUM) as Weight_Admit
+    FROM chartevents c
+    inner join icustays ie
+        on c.icustay_id = ie.icustay_id
+        and c.charttime <= DATETIME_ADD(ie.intime, INTERVAL '1' DAY)
+        and c.charttime > DATETIME_SUB(ie.intime, INTERVAL '1' DAY) -- some fuzziness for admit time
+    WHERE c.valuenum IS NOT NULL
+    AND c.itemid in (762,226512) -- Admit Wt
+    AND c.valuenum != 0
+    -- exclude rows marked as error
+    AND (c.error IS NULL OR c.error = 0)
+    group by c.icustay_id
+)
+, dwt as
+(
+    SELECT
+      c.icustay_id
+      , AVG(VALUENUM) as Weight_Daily
+    FROM chartevents c
+    INNER JOIN icustays ie
+        on c.icustay_id = ie.icustay_id
+        and c.charttime <= DATETIME_ADD(ie.intime, INTERVAL '1' DAY)
+        and c.charttime > DATETIME_SUB(ie.intime, INTERVAL '1' DAY) -- some fuzziness for admit time
+    WHERE c.valuenum IS NOT NULL
+    AND c.itemid in (763,224639) -- Daily Weight
+    AND c.valuenum != 0
+    -- exclude rows marked as error
+    AND (c.error IS NULL OR c.error = 0)
+    group by c.icustay_id
+)
+-- we split in-hospital/out of hospital echoes as we would like to prioritize in-hospital data
+, echo_hadm as
+(
+    select
+        ie.icustay_id
+        , 0.453592*AVG(weight) as Weight_EchoInHosp
+    from ""mimic"".""public"".""echo_data"" ec
+    inner join icustays ie
+        on ec.hadm_id = ie.hadm_id
+        and ec.charttime < DATETIME_ADD(ie.intime, INTERVAL '1' DAY)
+    where
+            ec.HADM_ID is not null
+        and ec.weight is not null
+    group by ie.icustay_id
+)
+, echo_nohadm as
+(
+    select
+        ie.icustay_id
+        , 0.453592*AVG(weight) as Weight_EchoPreHosp
+    from ""mimic"".""public"".""echo_data"" ec
+    inner join icustays ie
+        on ie.subject_id = ec.subject_id
+        and ie.intime < DATETIME_ADD(ec.charttime, INTERVAL '1' MONTH)
+        and ie.intime > ec.charttime
+    where
+            ec.HADM_ID is null
+        and ec.weight is not null
+    group by ie.icustay_id
+)
+select
+    ie.icustay_id
+    , round(cast(
+    case
+        when ce.icustay_id is not null
+            then ce.Weight_Admit
+        when dwt.icustay_id is not null
+            then dwt.Weight_Daily
+        when eh.icustay_id is not null
+            then eh.Weight_EchoInHosp
+        when enh.icustay_id is not null
+            then enh.Weight_EchoPreHosp
+        else null end
+        as numeric), 2)
+    as weight
+
+    -- components
+    , ce.weight_admit
+    , dwt.weight_daily
+    , eh.weight_echoinhosp
+    , enh.weight_echoprehosp
+
+FROM icustays ie
+
+-- filter to only adults
+inner join patients pat
+    on ie.subject_id = pat.subject_id
+    and ie.intime > DATETIME_ADD(pat.dob, INTERVAL '1' YEAR)
+
+-- admission weight
+left join ce
+    on ie.icustay_id = ce.icustay_id
+
+-- daily weights
+left join dwt
+    on ie.icustay_id = dwt.icustay_id
+
+-- in-hospital echo weight
+left join echo_hadm eh
+    on ie.icustay_id = eh.icustay_id
+
+-- pre-hospitalization echo weights
+left join echo_nohadm enh
+    on ie.icustay_id = enh.icustay_id
+order by ie.icustay_id
+  );",64737,Thread-1,2022-07-29T23:01:25.256826Z
+E017,,debug,SQL status: SELECT 53432 in 0.14 seconds,64737,Thread-1,2022-07-29T23:01:25.401340Z
+E015,,debug,"Using postgres connection ""model.mimic.weight_first_day""",64737,Thread-1,2022-07-29T23:01:25.408049Z
+E016,,debug,"On model.mimic.weight_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.weight_first_day""} */
+alter table ""mimic"".""public"".""weight_first_day"" rename to ""weight_first_day__dbt_backup""",64737,Thread-1,2022-07-29T23:01:25.408327Z
+E017,,debug,SQL status: ALTER TABLE in 0.0 seconds,64737,Thread-1,2022-07-29T23:01:25.409256Z
+E015,,debug,"Using postgres connection ""model.mimic.weight_first_day""",64737,Thread-1,2022-07-29T23:01:25.413937Z
+E016,,debug,"On model.mimic.weight_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.weight_first_day""} */
+alter table ""mimic"".""public"".""weight_first_day__dbt_tmp"" rename to ""weight_first_day""",64737,Thread-1,2022-07-29T23:01:25.414229Z
+E017,,debug,SQL status: ALTER TABLE in 0.0 seconds,64737,Thread-1,2022-07-29T23:01:25.414992Z
+E018,,debug,On model.mimic.weight_first_day: COMMIT,64737,Thread-1,2022-07-29T23:01:25.417994Z
+E015,,debug,"Using postgres connection ""model.mimic.weight_first_day""",64737,Thread-1,2022-07-29T23:01:25.418256Z
+E016,,debug,On model.mimic.weight_first_day: COMMIT,64737,Thread-1,2022-07-29T23:01:25.418480Z
+E017,,debug,SQL status: COMMIT in 0.01 seconds,64737,Thread-1,2022-07-29T23:01:25.425442Z
+E015,,debug,"Using postgres connection ""model.mimic.weight_first_day""",64737,Thread-1,2022-07-29T23:01:25.428251Z
+E016,,debug,"On model.mimic.weight_first_day: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.weight_first_day""} */
+drop table if exists ""mimic"".""public"".""weight_first_day__dbt_backup"" cascade",64737,Thread-1,2022-07-29T23:01:25.428486Z
+E017,,debug,SQL status: DROP TABLE in 0.0 seconds,64737,Thread-1,2022-07-29T23:01:25.430638Z
+Z010,,debug,finished collecting timing info,64737,Thread-1,2022-07-29T23:01:25.434174Z
+E010,,debug,On model.mimic.weight_first_day: Close,64737,Thread-1,2022-07-29T23:01:25.434465Z
+Z040,,debug,"Sending event: {'category': 'dbt', 'action': 'run_model', 'label': '51f6a751-a1bb-44fa-a157-e9f8f43002de', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x7f6d5dd012e0>]}",64737,Thread-1,2022-07-29T23:01:25.435248Z
+Q012,0,info,9 of 10 OK created table model public.weight_first_day ......................... [[32mSELECT 53432[0m in 0.21s],64737,Thread-1,2022-07-29T23:01:25.435757Z,table,null,weight_first_day,firstday/weight_first_day.sql,2022-07-29T23:01:25.219681,compiling,model,,,
+Q024,0.2136828899383545,debug,Finished running node model.mimic.weight_first_day,64737,Thread-1,2022-07-29T23:01:25.436434Z,table,2022-07-29T23:01:25.436216,weight_first_day,firstday/weight_first_day.sql,2022-07-29T23:01:25.219681,success,model,,,
+Q023,,debug,Began running node model.mimic.blood_gas_first_day_arterial,64737,Thread-1,2022-07-29T23:01:25.437186Z,table,null,blood_gas_first_day_arterial,firstday/blood_gas_first_day_arterial.sql,2022-07-29T23:01:25.437122,started,model,,,
+Q033,,info,10 of 10 START table model public.blood_gas_first_day_arterial ................. [RUN],64737,Thread-1,2022-07-29T23:01:25.437674Z,table,null,blood_gas_first_day_arterial,firstday/blood_gas_first_day_arterial.sql,2022-07-29T23:01:25.437122,started,model,,,
+E005,,debug,"Acquiring new postgres connection ""model.mimic.blood_gas_first_day_arterial""",64737,Thread-1,2022-07-29T23:01:25.438827Z
+Q030,,debug,Began compiling node model.mimic.blood_gas_first_day_arterial,64737,Thread-1,2022-07-29T23:01:25.439334Z,table,null,blood_gas_first_day_arterial,firstday/blood_gas_first_day_arterial.sql,2022-07-29T23:01:25.437122,compiling,model,,,
+Q027,,debug,Compiling model.mimic.blood_gas_first_day_arterial,64737,Thread-1,2022-07-29T23:01:25.439635Z
+Q028,,debug,"Writing injected SQL for node ""model.mimic.blood_gas_first_day_arterial""",64737,Thread-1,2022-07-29T23:01:25.443761Z
+Z010,,debug,finished collecting timing info,64737,Thread-1,2022-07-29T23:01:25.444549Z
+Q031,,debug,Began executing node model.mimic.blood_gas_first_day_arterial,64737,Thread-1,2022-07-29T23:01:25.444979Z,table,null,blood_gas_first_day_arterial,firstday/blood_gas_first_day_arterial.sql,null,executing,model,,,
+M012,,debug,"Writing runtime SQL for node ""model.mimic.blood_gas_first_day_arterial""",64737,Thread-1,2022-07-29T23:01:25.457636Z
+E015,,debug,"Using postgres connection ""model.mimic.blood_gas_first_day_arterial""",64737,Thread-1,2022-07-29T23:01:25.459628Z
+E016,,debug,On model.mimic.blood_gas_first_day_arterial: BEGIN,64737,Thread-1,2022-07-29T23:01:25.460471Z
+E037,,debug,"Opening a new connection, currently in state closed",64737,Thread-1,2022-07-29T23:01:25.461529Z
+E017,,debug,SQL status: BEGIN in 0.01 seconds,64737,Thread-1,2022-07-29T23:01:25.469616Z
+E015,,debug,"Using postgres connection ""model.mimic.blood_gas_first_day_arterial""",64737,Thread-1,2022-07-29T23:01:25.470954Z
+E016,,debug,"On model.mimic.blood_gas_first_day_arterial: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.blood_gas_first_day_arterial""} */
+
+
+  create  table ""mimic"".""public"".""blood_gas_first_day_arterial__dbt_tmp""
+  as (
+    with stg_spo2 as
+(
+  select subject_id, hadm_id, icustay_id, charttime
+    -- max here is just used to group SpO2 by charttime
+    , max(case when valuenum <= 0 or valuenum > 100 then null else valuenum end) as SpO2
+  FROM chartevents
+  -- o2 sat
+  where ITEMID in
+  (
+    646 -- SpO2
+  , 220277 -- O2 saturation pulseoxymetry
+  )
+  group by subject_id, hadm_id, icustay_id, charttime
+)
+, stg_fio2 as
+(
+  select subject_id, hadm_id, icustay_id, charttime
+    -- pre-process the FiO2s to ensure they are between 21-100%
+    , max(
+        case
+          when itemid = 223835
+            then case
+              when valuenum > 0 and valuenum <= 1
+                then valuenum * 100
+              -- improperly input data - looks like O2 flow in litres
+              when valuenum > 1 and valuenum < 21
+                then null
+              when valuenum >= 21 and valuenum <= 100
+                then valuenum
+              else null end -- unphysiological
+        when itemid in (3420, 3422)
+        -- all these values are well formatted
+            then valuenum
+        when itemid = 190 and valuenum > 0.20 and valuenum < 1
+        -- well formatted but not in %
+            then valuenum * 100
+      else null end
+    ) as fio2_chartevents
+  FROM chartevents
+  where ITEMID in
+  (
+    3420 -- FiO2
+  , 190 -- FiO2 set
+  , 223835 -- Inspired O2 Fraction (FiO2)
+  , 3422 -- FiO2 [measured]
+  )
+  -- exclude rows marked as error
+  AND (error IS NULL OR error = 0)
+  group by subject_id, hadm_id, icustay_id, charttime
+)
+, stg2 as
+(
+select bg.*
+  , ROW_NUMBER() OVER (partition by bg.icustay_id, bg.charttime order by s1.charttime DESC) as lastRowSpO2
+  , s1.spo2
+from ""mimic"".""public"".""blood_gas_first_day"" bg
+left join stg_spo2 s1
+  -- same patient
+  on  bg.icustay_id = s1.icustay_id
+  -- spo2 occurred at most 2 hours before this blood gas
+  and s1.charttime >= DATETIME_SUB(bg.charttime, INTERVAL '2' HOUR)
+  and s1.charttime <= bg.charttime
+where bg.po2 is not null
+)
+, stg3 as
+(
+select bg.*
+  , ROW_NUMBER() OVER (partition by bg.icustay_id, bg.charttime order by s2.charttime DESC) as lastRowFiO2
+  , s2.fio2_chartevents
+
+  -- create our specimen prediction
+  ,  1/(1+exp(-(-0.02544
+  +    0.04598 * po2
+  + coalesce(-0.15356 * spo2             , -0.15356 *   97.49420 +    0.13429)
+  + coalesce( 0.00621 * fio2_chartevents ,  0.00621 *   51.49550 +   -0.24958)
+  + coalesce( 0.10559 * hemoglobin       ,  0.10559 *   10.32307 +    0.05954)
+  + coalesce( 0.13251 * so2              ,  0.13251 *   93.66539 +   -0.23172)
+  + coalesce(-0.01511 * pco2             , -0.01511 *   42.08866 +   -0.01630)
+  + coalesce( 0.01480 * fio2             ,  0.01480 *   63.97836 +   -0.31142)
+  + coalesce(-0.00200 * aado2            , -0.00200 *  442.21186 +   -0.01328)
+  + coalesce(-0.03220 * bicarbonate      , -0.03220 *   22.96894 +   -0.06535)
+  + coalesce( 0.05384 * totalco2         ,  0.05384 *   24.72632 +   -0.01405)
+  + coalesce( 0.08202 * lactate          ,  0.08202 *    3.06436 +    0.06038)
+  + coalesce( 0.10956 * ph               ,  0.10956 *    7.36233 +   -0.00617)
+  + coalesce( 0.00848 * o2flow           ,  0.00848 *    7.59362 +   -0.35803)
+  ))) as SPECIMEN_PROB
+from stg2 bg
+left join stg_fio2 s2
+  -- same patient
+  on  bg.icustay_id = s2.icustay_id
+  -- fio2 occurred at most 4 hours before this blood gas
+  and s2.charttime between DATETIME_SUB(bg.charttime, INTERVAL '4' HOUR) and bg.charttime
+where bg.lastRowSpO2 = 1 -- only the row with the most recent SpO2 (if no SpO2 found lastRowSpO2 = 1)
+)
+
+select subject_id, hadm_id,
+icustay_id, charttime
+, specimen -- raw data indicating sample type, only present 80% of the time
+
+-- prediction of specimen for missing data
+, case
+      when SPECIMEN is not null then SPECIMEN
+      when SPECIMEN_PROB > 0.75 then 'ART'
+    else null end as SPECIMEN_PRED
+, specimen_prob
+-- oxygen related parameters
+, so2, spo2 -- note spo2 is FROM chartevents
+, po2, pco2
+, fio2_chartevents, fio2
+, aado2
+-- also calculate AADO2
+, case
+    when  PO2 is not null
+      and pco2 is not null
+      and coalesce(fio2, fio2_chartevents) is not null
+     -- multiple by 100 because FiO2 is in a % but should be a fraction
+      then (coalesce(fio2, fio2_chartevents)/100) * (760 - 47) - (pco2/0.8) - po2
+    else null
+  end as AADO2_calc
+, case
+    when PO2 is not null and coalesce(fio2, fio2_chartevents) is not null
+     -- multiply by 100 because FiO2 is in a % but should be a fraction
+      then 100*PO2/(coalesce(fio2, fio2_chartevents))
+    else null
+  end as PaO2FiO2
+-- acid-base parameters
+, ph, baseexcess
+, bicarbonate, totalco2
+
+-- blood count parameters
+, hematocrit
+, hemoglobin
+, carboxyhemoglobin
+, methemoglobin
+
+-- chemistry
+, chloride, calcium
+, temperature
+, potassium, sodium
+, lactate
+, glucose
+
+-- ventilation stuff that's sometimes input
+, intubated, tidalvolume, ventilationrate, ventilator
+, peep, o2flow
+, requiredo2
+
+from stg3
+where lastRowFiO2 = 1 -- only the most recent FiO2
+-- restrict it to *only* arterial samples
+and (specimen = 'ART' or specimen_prob > 0.75)
+order by icustay_id, charttime
+  );",64737,Thread-1,2022-07-29T23:01:25.471325Z
+E017,,debug,SQL status: SELECT 0 in 0.02 seconds,64737,Thread-1,2022-07-29T23:01:25.494087Z
+E015,,debug,"Using postgres connection ""model.mimic.blood_gas_first_day_arterial""",64737,Thread-1,2022-07-29T23:01:25.504032Z
+E016,,debug,"On model.mimic.blood_gas_first_day_arterial: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.blood_gas_first_day_arterial""} */
+alter table ""mimic"".""public"".""blood_gas_first_day_arterial"" rename to ""blood_gas_first_day_arterial__dbt_backup""",64737,Thread-1,2022-07-29T23:01:25.504421Z
+E017,,debug,SQL status: ALTER TABLE in 0.0 seconds,64737,Thread-1,2022-07-29T23:01:25.505351Z
+E015,,debug,"Using postgres connection ""model.mimic.blood_gas_first_day_arterial""",64737,Thread-1,2022-07-29T23:01:25.517027Z
+E016,,debug,"On model.mimic.blood_gas_first_day_arterial: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.blood_gas_first_day_arterial""} */
+alter table ""mimic"".""public"".""blood_gas_first_day_arterial__dbt_tmp"" rename to ""blood_gas_first_day_arterial""",64737,Thread-1,2022-07-29T23:01:25.517472Z
+E017,,debug,SQL status: ALTER TABLE in 0.0 seconds,64737,Thread-1,2022-07-29T23:01:25.519189Z
+E018,,debug,On model.mimic.blood_gas_first_day_arterial: COMMIT,64737,Thread-1,2022-07-29T23:01:25.527960Z
+E015,,debug,"Using postgres connection ""model.mimic.blood_gas_first_day_arterial""",64737,Thread-1,2022-07-29T23:01:25.528798Z
+E016,,debug,On model.mimic.blood_gas_first_day_arterial: COMMIT,64737,Thread-1,2022-07-29T23:01:25.529279Z
+E017,,debug,SQL status: COMMIT in 0.0 seconds,64737,Thread-1,2022-07-29T23:01:25.531846Z
+E015,,debug,"Using postgres connection ""model.mimic.blood_gas_first_day_arterial""",64737,Thread-1,2022-07-29T23:01:25.536987Z
+E016,,debug,"On model.mimic.blood_gas_first_day_arterial: /* {""app"": ""dbt"", ""dbt_version"": ""1.1.1"", ""profile_name"": ""mimic"", ""target_name"": ""dev"", ""node_id"": ""model.mimic.blood_gas_first_day_arterial""} */
+drop table if exists ""mimic"".""public"".""blood_gas_first_day_arterial__dbt_backup"" cascade",64737,Thread-1,2022-07-29T23:01:25.537341Z
+E017,,debug,SQL status: DROP TABLE in 0.0 seconds,64737,Thread-1,2022-07-29T23:01:25.541180Z
+Z010,,debug,finished collecting timing info,64737,Thread-1,2022-07-29T23:01:25.546408Z
+E010,,debug,On model.mimic.blood_gas_first_day_arterial: Close,64737,Thread-1,2022-07-29T23:01:25.546877Z
+Z040,,debug,"Sending event: {'category': 'dbt', 'action': 'run_model', 'label': '51f6a751-a1bb-44fa-a157-e9f8f43002de', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x7f6d5d2dfd00>]}",64737,Thread-1,2022-07-29T23:01:25.548033Z
+Q012,0,info,10 of 10 OK created table model public.blood_gas_first_day_arterial ............ [[32mSELECT 0[0m in 0.11s],64737,Thread-1,2022-07-29T23:01:25.549551Z,table,null,blood_gas_first_day_arterial,firstday/blood_gas_first_day_arterial.sql,2022-07-29T23:01:25.437122,compiling,model,,,
+Q024,0.10958242416381836,debug,Finished running node model.mimic.blood_gas_first_day_arterial,64737,Thread-1,2022-07-29T23:01:25.551788Z,table,2022-07-29T23:01:25.551207,blood_gas_first_day_arterial,firstday/blood_gas_first_day_arterial.sql,2022-07-29T23:01:25.437122,success,model,,,
+E005,,debug,"Acquiring new postgres connection ""master""",64737,MainThread,2022-07-29T23:01:25.557247Z
+E015,,debug,"Using postgres connection ""master""",64737,MainThread,2022-07-29T23:01:25.558549Z
+E016,,debug,On master: BEGIN,64737,MainThread,2022-07-29T23:01:25.559240Z
+E037,,debug,"Opening a new connection, currently in state closed",64737,MainThread,2022-07-29T23:01:25.559483Z
+E017,,debug,SQL status: BEGIN in 0.01 seconds,64737,MainThread,2022-07-29T23:01:25.570332Z
+E018,,debug,On master: COMMIT,64737,MainThread,2022-07-29T23:01:25.571792Z
+E015,,debug,"Using postgres connection ""master""",64737,MainThread,2022-07-29T23:01:25.573097Z
+E016,,debug,On master: COMMIT,64737,MainThread,2022-07-29T23:01:25.574311Z
+E017,,debug,SQL status: COMMIT in 0.0 seconds,64737,MainThread,2022-07-29T23:01:25.576581Z
+E010,,debug,On master: Close,64737,MainThread,2022-07-29T23:01:25.577267Z
+E040,,info,Finished running 10 table models in 6.23s.,64737,MainThread,2022-07-29T23:01:25.578488Z
+E008,,debug,Connection 'master' was properly closed.,64737,MainThread,2022-07-29T23:01:25.579206Z
+E008,,debug,Connection 'model.mimic.blood_gas_first_day_arterial' was properly closed.,64737,MainThread,2022-07-29T23:01:25.579577Z
+Z030,,info,[32mCompleted successfully[0m,64737,MainThread,2022-07-29T23:01:25.608635Z
+Z023,,info,Done. PASS=10 WARN=0 ERROR=0 SKIP=0 TOTAL=10,64737,MainThread,2022-07-29T23:01:25.611587Z
+Z040,,debug,"Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'end', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x7f6d5ddb5640>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x7f6d5ddb5730>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x7f6d5ddb54f0>]}",64737,MainThread,2022-07-29T23:01:25.614570Z
