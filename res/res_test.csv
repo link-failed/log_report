@@ -1,0 +1,4 @@
+code,execution_time,level,msg,pid,thread_name,ts,materialized,node_finished_at,node_name,node_path,node_started_at,node_status,resource_type,rows_affected,failures,message
+Q030,7777,debug,Began compiling node model.mimic.vitals_first_day,64548,Thread-1,2022-07-29T23:00:38.400307Z,table,null,blood_gas_first_day,firstday/vitals_first_day.sql,2022-07-29T23:00:38.396379,compiling,model,,,
+Q027,8888,debug,Compiling model.mimic.vitals_first_day,64548,Thread-1,2022-07-29T23:00:38.400840Z,,,blood_gas_first_day,,,,,,,
+Q028,,debug,Writing injected SQL for node "model.mimic.vitals_first_day",64548,Thread-1,2022-07-29T23:00:38.402908Z,,,,,,,,,,
