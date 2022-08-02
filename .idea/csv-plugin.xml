@@ -17,6 +17,13 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="/logs_example/postgresql-2022-07-15_172235.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="/logs_example/postgresql-2022-07-17_000000.csv">
           <value>
             <Attribute>
@@ -25,6 +32,13 @@
           </value>
         </entry>
         <entry key="/res/csv3.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/res/res1(copy).csv">
           <value>
             <Attribute>
               <option name="separator" value="," />
