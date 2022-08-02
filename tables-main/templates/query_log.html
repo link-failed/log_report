@@ -5,7 +5,6 @@
     <thead>
       <tr>
         <th>node_name</th>
-        <th>level</th>
         <th>duration</th>
         <th>start_time</th>
         <th>finish_time</th>
@@ -16,7 +15,6 @@
       {% for record in records %}
         <tr>
           <td>{{ record.node_name }}</td>
-          <td>{{ record.level }}</td>
           <td>{{ record.duration }}</td>
           <td>{{ record.start_time }}</td>
           <td>{{ record.finish_time }}</td>
@@ -33,12 +31,11 @@
       $('#data').DataTable({
         columns: [
           null,
-          null,
           {searchable: false},
           {searchable: false},
           {searchable: false},
-<!--          {orderable: false, searchable: false},-->
-          null],
+          {orderable: false, searchable: false},
+        ],
       });
     });
   </script>

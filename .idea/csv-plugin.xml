@@ -31,20 +31,6 @@
             </Attribute>
           </value>
         </entry>
-        <entry key="/res/csv3.csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
-        <entry key="/res/res1(copy).csv">
-          <value>
-            <Attribute>
-              <option name="separator" value="," />
-            </Attribute>
-          </value>
-        </entry>
         <entry key="/res/res1.csv">
           <value>
             <Attribute>
@@ -53,6 +39,13 @@
           </value>
         </entry>
         <entry key="/res/res2.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/res/res3.csv">
           <value>
             <Attribute>
               <option name="separator" value="," />

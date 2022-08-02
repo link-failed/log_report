@@ -89,7 +89,7 @@ res_directory = "../res"
 
 
 def process_log():
-    with open('../logs_example/dbt-30.log', 'r') as f, open('../res/res2.csv', 'w') as output:
+    with open('../logs_example/dbt-1.log', 'r') as f, open('../res/res3.csv', 'w') as output:
         writer = csv.writer(output)
 
         # add header for the csv output

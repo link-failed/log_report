@@ -8,7 +8,7 @@ level_index = 2
 execution_time_index = 1
 start_time_index = 11
 finish_time_index = 8
-log_report_name = "log_report.json"
+log_report_name = "log_report3.json"
 
 # json file format:
 # {'model_name[level]': {'start_time1': 'duration', 'start_time2': 'duration', ...}}
