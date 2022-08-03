@@ -31,14 +31,13 @@
   </table>
 
   <div class="modal fade" id="durationFig">
-    <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-lg" style="width:690px;">
       <div class="modal-content">
         <div class="modal-header">
-          <button type="button" class="close" data-dismiss="modal">&times;</button>
-          <h4 class="modal-title">History Duration</h4>
+          <h3 class="modal-title">History Duration</h3>
         </div>
-        <div class="modal-body">
-          <p>This is a large modal.</p>
+        <div class="modal-body" id="putFig" style="text-align: center;">
+<!--          <img class="img-responsive"  src='static/adenosine_durations[debug].png'/>-->
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
@@ -68,19 +67,20 @@
     $('#data tbody').on('click', 'button', function () {
       var nodeName = $(this)[0].childNodes[0].parentNode.parentElement.parentNode.childNodes[1].childNodes[0].data;
       console.log(nodeName);
-<!--      const durationFig = new mdb.Modal(document.getElementById('durationFig'), options);-->
-      $("#durationFig").modal();
+
+      $.ajax({
+        type: "GET",
+        url: "draw_duration",
+        data: {node_name: nodeName}
+      }).done(function(fig_path) {
+        var fig_tag = "<img class='img-responsive'  src='" + fig_path + "'/>"
+        $('#putFig').html(fig_tag);
+        const popUp = new bootstrap.Modal('#durationFig', options);
+        popUp.show();
+      });
+
     });
 
 
-<!--    function showPop(){-->
-<!--      var node_name = $('#data').DataTable().row('.selected').context[0].nTBody.children[0].cells[0].childNodes[0].data;-->
-<!--      var node_name = $('#history_fig');-->
-<!--      var table = $('#data').DataTable();-->
-<!--      var closestRow = $(this).closest('tr');-->
-<!--      var node_name = table.row(closestRow);-->
-<!--      console.log(node_name);-->
-<!--      alert(node_name);-->
-<!--    }-->
   </script>
 {% endblock %}
