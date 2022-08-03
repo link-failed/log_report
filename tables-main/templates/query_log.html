@@ -9,6 +9,7 @@
         <th>start_time</th>
         <th>finish_time</th>
         <th>pid</th>
+        <th>history</th>
       </tr>
     </thead>
     <tbody>
@@ -19,10 +20,33 @@
           <td>{{ record.start_time }}</td>
           <td>{{ record.finish_time }}</td>
           <td>{{ record.pid }}</td>
+          <td id="history_fig">
+            <button type="button" data-toggle="modal" data-target="#durationFig">
+              Show
+            </button>
+          </td>
         </tr>
       {% endfor %}
     </tbody>
   </table>
+
+  <div class="modal fade" id="durationFig">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <button type="button" class="close" data-dismiss="modal">&times;</button>
+          <h4 class="modal-title">History Duration</h4>
+        </div>
+        <div class="modal-body">
+          <p>This is a large modal.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -35,8 +59,28 @@
           {searchable: false},
           {searchable: false},
           {orderable: false, searchable: false},
+          {orderable: false, searchable: false}
         ],
       });
     });
+
+
+    $('#data tbody').on('click', 'button', function () {
+      var nodeName = $(this)[0].childNodes[0].parentNode.parentElement.parentNode.childNodes[1].childNodes[0].data;
+      console.log(nodeName);
+<!--      const durationFig = new mdb.Modal(document.getElementById('durationFig'), options);-->
+      $("#durationFig").modal();
+    });
+
+
+<!--    function showPop(){-->
+<!--      var node_name = $('#data').DataTable().row('.selected').context[0].nTBody.children[0].cells[0].childNodes[0].data;-->
+<!--      var node_name = $('#history_fig');-->
+<!--      var table = $('#data').DataTable();-->
+<!--      var closestRow = $(this).closest('tr');-->
+<!--      var node_name = table.row(closestRow);-->
+<!--      console.log(node_name);-->
+<!--      alert(node_name);-->
+<!--    }-->
   </script>
 {% endblock %}
