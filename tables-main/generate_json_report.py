@@ -32,10 +32,6 @@ def generate_or_update_json(log_filename):
                     new_id = row[node_name_index] + '[' + row[level_index] + ']'
                     start_time = row[start_time_index]
                     duration = row[execution_time_index]
-                    # print(new_id)
-                    # print(duration)
-                    # print(start_time)
-                    # print(res_f)
                     if os.stat(log_report_name).st_size > 0:
                         json_dict = json.load(res_f)
                         if new_id not in json_dict.keys():

@@ -80,20 +80,70 @@ def find_message(line):
     return str(res).replace("\"", "")
 
 
-header = ['code', 'execution_time', 'level', 'msg', 'pid', 'thread_name', 'ts', 'materialized', \
-          'node_finished_at', 'node_name', 'node_path', 'node_started_at', 'node_status', 'resource_type', \
-          'rows_affected', 'failures', 'message']
-log_directory = "/home/ceci/Desktop/mimic-dbt/logs/dbt.log"
-res_directory = "../res"
-# recognize a new Running with dbt=1.1.1
+header_for_all_log = ['code', 'execution_time', 'level', 'msg', 'pid', 'thread_name', 'ts', 'materialized',
+                      'node_finished_at', 'node_name', 'node_path', 'node_started_at', 'node_status', 'resource_type',
+                      'rows_affected', 'failures', 'message']
+
+header_for_this_log = ["node_name", "execution_time", "node_started_at", "node_finished_at", "node_status", "pid"]
 
 
-def process_log():
-    with open('../logs_example/dbt-1.log', 'r') as f, open('../res/res3.csv', 'w') as output:
+def process_this_log():
+    # find the last
+    begin_flag = '"msg": "Running with dbt='
+    log_path = '../logs_example/'
+    log_name = 'dbt.log'
+    res_path = '../res/'
+    res_name = 'this_dbt_log.csv'
+    with open(log_path + log_name, 'r') as f, open(res_path + res_name, 'w') as output:
         writer = csv.writer(output)
 
         # add header for the csv output
-        writer.writerow(header)
+        writer.writerow(header_for_all_log)
+        
+        all_log = f.readlines()
+        start_index = [x for x in range(len(all_log)) if begin_flag in all_log[x]]
+        this_lines = all_log[start_index:]
+
+        for jsonStr in this_lines:
+            json_data = json.loads(jsonStr)
+            execution_time = find_execution_time(jsonStr)
+            if execution_time == "" or execution_time == "0":
+                continue
+
+            for k, v in json_data.items():
+                if k == 'level':
+                    level = v
+                    if level == "debug":
+                        continue
+                elif k == 'pid':
+                    pid = v
+
+            rule = r'\"node_info\": {(.*?)},'
+            if re.search(rule, jsonStr) is not None:
+                record = re.search(rule, jsonStr).group(1)
+
+                node_finished_at = find_node_finished(record)
+                node_name = find_node_name(record)
+                node_started_at = find_node_started(record)
+                node_status = find_node_status(record)
+
+                this_row = [node_name, execution_time, node_started_at, node_finished_at, node_status, pid]
+
+            else:
+                continue
+            writer.writerow(this_row)
+
+
+def process_all_log():
+    log_path = '../logs_example/'
+    log_name = 'dbt.log'
+    res_path = '../res/'
+    res_name = 'all_dbt_log.csv'
+    with open(log_path + log_name, 'r') as f, open(res_path + res_name, 'w') as output:
+        writer = csv.writer(output)
+
+        # add header_for_all_log for the csv output
+        writer.writerow(header_for_all_log)
 
         for jsonStr in f.readlines():
             json_data = json.loads(jsonStr)
@@ -134,78 +184,19 @@ def process_log():
                 failures = find_failures(record)
                 message = find_message(record)
 
-                prev_row = [code, execution_time, level, msg, pid, thread_name, ts, materialized,
+                this_row = [code, execution_time, level, msg, pid, thread_name, ts, materialized,
                             node_finished_at, node_name, node_path, node_started_at, node_status, resource_type,
                             rows_affected, failures, message]
 
             else:
-                prev_row = [code, execution_time, level, msg, pid, thread_name, ts]
-            writer.writerow(prev_row)
-
-
-bar_num = 40
-ts_list = []
-duration_list = []
-
-
-# def get_duration():
-#     # if duration_time is not null and > 0
-#     # id format: node_name[level]
-#     with open('../res/res1.csv', newline='') as f:
-#         reader = csv.DictReader(f)
-#         for row in reader:
-#             if row['execution_time'] != "" and float(row['execution_time']) > 0:
-#                 duration_list.append(float(row['execution_time']))
-#                 cut_time_index1 = row['ts'].find(':') + 1
-#                 cut_time_index2 = row['ts'].find('.') + 3
-#                 ts_list.append(row['ts'][cut_time_index1:cut_time_index2])
-
-
-def split_list(x_list, y_list):
-    group = math.ceil(len(x_list) / bar_num)
-    x_list_list = []
-    y_list_list = []
-    index1 = 0
-    index2 = bar_num
-    for i in range(group):
-        x_list_list.append(x_list[index1:index2])
-        y_list_list.append(y_list[index1:index2])
-        index1 += bar_num
-        index2 += bar_num
-    return group, x_list_list, y_list_list
-
-
-def duration_plt():
-    group, x_list_list, y_list_list = split_list(ts_list, duration_list)
-    column = 2
-    row = math.ceil(group / column)  # todo
-    fig, axs = plt.subplots(nrows=row, ncols=column, sharey=True)  # bar_num in one time
-    fig.suptitle('duration')
-
-    i = 0
-    for row in axs:
-        for col in row:
-            col.bar(x_list_list[i], y_list_list[i])
-            i += 1
-            col.tick_params(axis='x', rotation=90)
-
-    # plt.xticks(rotation=90)
-    plt.show()
+                this_row = [code, execution_time, level, msg, pid, thread_name, ts]
+            writer.writerow(this_row)
 
 
 def main():
-    process_log()
-    # get_duration()
-    # duration_plt()
+    process_all_log()
+    process_this_log()
 
 
 if __name__ == "__main__":
     main()
-
-# "completed_at": "2022-07-18T00:10:04.442487Z"
-# "started_at": "2022-07-18T00:10:04.4bar_numbar_num3Z"
-# "node_finished_at": "2022-07-18T00:10:05.324930"
-# "node_started_at": "2022-07-18T00:10:04.437969"
-# "ts": "2022-07-18T00:10:05.325107Z"
-# "execution_time": 0.8839113712310791 ~ node_finished-node_started?
-# "created_at": 1657876846.6253757
