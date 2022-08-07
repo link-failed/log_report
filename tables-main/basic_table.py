@@ -15,16 +15,18 @@ def draw_bar_from_json(json_file, model_name):
         duration = []
         for st in sorted(json_dict[model_name].keys()):
             start_time.append(st)
-            duration.append(json_dict[model_name][st])
-        print("start time: " + str(start_time))
-        print("duration: " + str(duration))
+            duration.append(float(json_dict[model_name][st]))
+
         plt.figure(figsize=(10, 6), dpi=120)
         plt.barh(start_time, duration)
         plt.title(model_name, fontweight='bold')
         plt.ylabel('start time', fontweight='bold')
         plt.xlabel('duration', fontweight='bold')
+        # plt.grid(color='#95a5a6', linestyle='--', linewidth=2, axis='y', alpha=0.7)
+
         for i, v in enumerate(duration):
             plt.text(v, i, " "+str(v), va='center')
+
         fig_name = 'static/' + model_name + '.png'
         plt.xticks([])
         plt.subplots_adjust(top=0.905, bottom=0.11, left=0.27, right=0.830, hspace=0.2, wspace=0.2)

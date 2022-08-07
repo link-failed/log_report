@@ -1,12 +1,19 @@
 import json
 import csv
 import re
-import math
-import matplotlib.pyplot as plt
 
+'''
+json log format: https://docs.getdbt.com/reference/events-logging#structured-logging
+command: dbt --log-format json run
 
-# json log format: https://docs.getdbt.com/reference/events-logging#structured-logging
-# command: dbt --log-format json run
+process:
+ 1. dbt.log -> [parse_txt.py] -> this_dbt_log.csv
+    dbt.log -> [parse_txt.py] -> all_dbt_log.csv
+ 2. this_dbt_log.csv -> [generate_json_report.py] -> log_report.json
+    log_report.json -> [basic_table.py] -> Flask front-end
+ 3. (click button to show history duration figure)
+    this_dbt_log.csv -> [[basic_table.py]] -> bar chart
+'''
 
 
 def find_node(line):
@@ -102,7 +109,7 @@ def process_this_log():
         
         all_log = f.readlines()
         start_index = [x for x in range(len(all_log)) if begin_flag in all_log[x]]
-        this_lines = all_log[start_index:]
+        this_lines = all_log[start_index[-1]:]
 
         for jsonStr in this_lines:
             json_data = json.loads(jsonStr)

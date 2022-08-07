@@ -60,8 +60,18 @@
           {orderable: false, searchable: false}
         ],
       });
-    });
 
+<!--   find longest 3 queries   -->
+<!--      $("#data td:nth-child(2)").each(function () {-->
+<!--        if (parseInt($(this).text(), 10) < 100) {-->
+<!--            $(this).parent("tr").css("background-color", "red");-->
+<!--        }-->
+<!--      });-->
+<!--    });-->
+
+    $('#pagination').on('click', function () {
+      alert('page!');
+    })
 
     $('#data tbody').on('click', 'button', function () {
       var nodeName = $(this)[0].childNodes[0].parentNode.parentElement.parentNode.childNodes[1].childNodes[0].data;
