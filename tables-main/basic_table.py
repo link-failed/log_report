@@ -22,7 +22,6 @@ def draw_bar_from_json(json_file, model_name):
         plt.title(model_name, fontweight='bold')
         plt.ylabel('start time', fontweight='bold')
         plt.xlabel('duration', fontweight='bold')
-        # plt.grid(color='#95a5a6', linestyle='--', linewidth=2, axis='y', alpha=0.7)
 
         for i, v in enumerate(duration):
             plt.text(v, i, " "+str(v), va='center')
@@ -34,7 +33,6 @@ def draw_bar_from_json(json_file, model_name):
         plt.cla()
 
 
-# TODO: delete level flag in json report
 @app.route('/draw_duration')
 def get_fig():
     model_name = request.args.get("node_name") + "[debug]"

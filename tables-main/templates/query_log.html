@@ -4,6 +4,7 @@
   <table id="data" class="table table-striped">
     <thead>
       <tr>
+        <th>#</th>
         <th>node_name</th>
         <th>duration</th>
         <th>start_time</th>
@@ -15,6 +16,7 @@
     <tbody>
       {% for record in records %}
         <tr>
+          <td></td>
           <td>{{ record.node_name }}</td>
           <td>{{ record.duration }}</td>
           <td>{{ record.start_time }}</td>
@@ -53,25 +55,46 @@
       $('#data').DataTable({
         columns: [
           null,
+          null,
           {searchable: false},
           {searchable: false},
           {searchable: false},
           {orderable: false, searchable: false},
           {orderable: false, searchable: false}
-        ],
+        ]
       });
 
-<!--   find longest 3 queries   -->
-<!--      $("#data td:nth-child(2)").each(function () {-->
-<!--        if (parseInt($(this).text(), 10) < 100) {-->
-<!--            $(this).parent("tr").css("background-color", "red");-->
-<!--        }-->
-<!--      });-->
-<!--    });-->
+      $("#data td:nth-child(3)").each(function () {
+        if (parseInt($(this).text(), 10) > 1) {
+            $(this).parent("tr").css("background-color", "red");
+        }
+      });
+    });
 
-    $('#pagination').on('click', function () {
-      alert('page!');
+    $('#data').on('page.dt', function () {
+      $("#data td:nth-child(3)").each(function () {
+        if (parseInt($(this).text(), 10) > 1) {
+            $(this).parent("tr").css("background-color", "red");
+        }
+      });
     })
+
+    $('#data').on('order.dt', function () {
+      $("#data td:nth-child(3)").each(function () {
+        if (parseFloat($(this).text(), 10) > 1) {
+            $(this).parent("tr").css("background-color", "red");
+        }
+      });
+    })
+
+    $('#data').on('search.dt', function () {
+      $("#data td:nth-child(3)").each(function () {
+        if (parseInt($(this).text(), 10) > 1) {
+            $(this).parent("tr").css("background-color", "red");
+        }
+      });
+    })
+
 
     $('#data tbody').on('click', 'button', function () {
       var nodeName = $(this)[0].childNodes[0].parentNode.parentElement.parentNode.childNodes[1].childNodes[0].data;
