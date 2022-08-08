@@ -31,7 +31,16 @@
           </td>
 
           <td align="center">
-            \
+            {% if record.duration > bar %}
+              <svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='red' class='bi bi-info-circle' viewBox='0 0 16 16'>\
+                <path d='M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z'/>\
+                <path d='m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z'/>\
+              </svg>
+            {% elif record.node_status == "error" %}
+              error
+            {% else %}
+              \
+            {% endif %}
           </td>
         </tr>
       {% endfor %}
@@ -57,19 +66,6 @@
 
 {% block scripts %}
   <script>
-    var ave_duration = 0;
-    function setSignal() {
-      $("#data td:nth-child(2)").each(function () {
-        if (parseInt($(this).text(), 10) > 100) {
-          var icon_tag = "<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='red' class='bi bi-info-circle' viewBox='0 0 16 16'>\
-              <path d='M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z'/>\
-              <path d='m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z'/>\
-            </svg>"
-          $(this).parent("tr")[0].lastElementChild.innerHTML = icon_tag;
-        }
-      });
-    }
-
     $(document).ready(function () {
       $('#data').DataTable({
         columns: [
@@ -77,26 +73,13 @@
           {searchable: false},
           {searchable: false},
           {searchable: false},
-          {orderable: false, searchable: false},
+          {searchable: false},
           {orderable: false, searchable: false},
           {orderable: false, searchable: false},
           {orderable: false, searchable: false}
         ]
       });
-
     });
-
-    $('#data').on('page.dt', function () {
-      setSignal();
-    })
-
-    $('#data').on('order.dt', function () {
-      setSignal();
-    })
-
-    $('#data').on('search.dt', function () {
-      setSignal();
-    })
 
     $('#data tbody').on('click', 'button', function () {
       var nodeName = $(this)[0].childNodes[0].parentNode.parentElement.parentNode.childNodes[1].childNodes[0].data;
@@ -113,7 +96,6 @@
         popUp.show();
       });
     });
-
 
   </script>
 {% endblock %}

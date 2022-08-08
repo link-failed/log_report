@@ -12,7 +12,7 @@ pid_index = 5
 # 1. generate report for all logs
 #    maintain a json file listing all models and their history duration
 # 2. show only current logs in front-end
-#    find the latest .csv file and parse from the last "running on" flag
+#    find the latest .csv file and parse_pg from the last "running on" flag
 # 3. permission issue (?)
 # path for Mint OS 20: /var/log/postgresql/
 
@@ -41,7 +41,7 @@ def log_info_for_table():
         for row in reader:
             record_dict_list.append({
                 "node_name": row[node_name_index],
-                "duration": row[execution_time_index],
+                "duration": float(row[execution_time_index]),
                 "start_time": row[start_time_index],
                 "finish_time": row[finish_time_index],
                 "node_status": row[status_index],

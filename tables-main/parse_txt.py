@@ -111,7 +111,10 @@ def process_this_log():
         
         all_log = f.readlines()
         start_index = [x for x in range(len(all_log)) if begin_flag in all_log[x]]
-        this_lines = all_log[start_index[-1]:]
+        if not start_index:
+            this_lines = all_log
+        else:
+            this_lines = all_log[start_index[-1]:]
 
         for jsonStr in this_lines:
             json_data = json.loads(jsonStr)
