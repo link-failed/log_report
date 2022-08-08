@@ -1,4 +1,4 @@
-node_name,execution_time,node_started_at,node_finished_at,node_status,pid
+node_name,execution_time,node_started_at,node_finished_at,node_status,dbt_pid
 phenylephrine_dose,3.6360578536987305,2022-08-08T19:29:54.223276,2022-08-08T19:29:57.861470,success,5481
 phenylephrine_durations,3.6972546577453613,2022-08-08T19:29:57.862393,2022-08-08T19:30:01.562142,success,5481
 pivoted_bg,0.15424895286560059,2022-08-08T19:30:01.562889,2022-08-08T19:30:01.719698,success,5481

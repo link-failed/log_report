@@ -2,15 +2,12 @@ import json
 import csv
 import os
 
-node_name_index = 9
-level_index = 2
+node_name_index = 0
 execution_time_index = 1
-start_time_index = 11
-finish_time_index = 8
-
-# node_name_index = 0
-# execution_time_index = 1
-# start_time_index = 2
+start_time_index = 2
+finish_time_index = 3
+status_index = 4
+pid_index = 5
 
 # store all logs' duration information
 log_report_name = "log_report4.json"

@@ -89,11 +89,7 @@ def find_message(line):
     return str(res).replace("\"", "")
 
 
-header_for_all_log = ['code', 'execution_time', 'level', 'msg', 'pid', 'thread_name', 'ts', 'materialized',
-                      'node_finished_at', 'node_name', 'node_path', 'node_started_at', 'node_status', 'resource_type',
-                      'rows_affected', 'failures', 'message']
-
-header_for_this_log = ["node_name", "execution_time", "node_started_at", "node_finished_at", "node_status", "pid"]
+csv_header = ["node_name", "execution_time", "node_started_at", "node_finished_at", "node_status", "dbt_pid"]
 
 
 def process_this_log():
@@ -107,7 +103,7 @@ def process_this_log():
         writer = csv.writer(output)
 
         # add header for the csv output
-        writer.writerow(header_for_this_log)
+        writer.writerow(csv_header)
         
         all_log = f.readlines()
         start_index = [x for x in range(len(all_log)) if begin_flag in all_log[x]]
@@ -128,7 +124,7 @@ def process_this_log():
                     if level == "debug":
                         continue
                 elif k == 'pid':
-                    pid = v
+                    dbt_pid = v
 
             rule = r'\"node_info\": {(.*?)},'
             if re.search(rule, jsonStr) is not None:
@@ -142,7 +138,7 @@ def process_this_log():
                 node_name = find_node_name(record)
                 node_started_at = find_node_started(record)
 
-                this_row = [node_name, execution_time, node_started_at, node_finished_at, node_status, pid]
+                this_row = [node_name, execution_time, node_started_at, node_finished_at, node_status, dbt_pid]
 
             else:
                 continue
@@ -156,60 +152,47 @@ def process_all_log():
 
     log_files = os.listdir(log_path)
 
-    for log_file in log_files:
-        if log_file[-4:] == '.log':
-            with open(log_path + log_file, 'r') as f, open(res_path + res_name, 'w') as output:
-                writer = csv.writer(output)
+    with open(res_path + res_name, 'w') as output:
+        writer = csv.writer(output)
+        writer.writerow(csv_header)
 
-                # add header_for_all_log for the csv output
-                writer.writerow(header_for_all_log)
+        for log_file in log_files:
+            if log_file[-4:] == '.log':
+                print("parse " + log_file + "...")
+                # To append, not to overwrite
+                with open(log_path + log_file, 'r') as f:
+                    for jsonStr in f.readlines():
+                        json_data = json.loads(jsonStr)
+                        execution_time = find_execution_time(jsonStr)
+                        if execution_time == "" or execution_time == "0":
+                            continue
 
-                for jsonStr in f.readlines():
-                    json_data = json.loads(jsonStr)
-                    for k, v in json_data.items():
-                        if k == 'code':
-                            code = v
-                        # elif k == 'data':
-                        #     data = v
-                        # elif k == 'invocation_id':
-                        #     invocation_id = v
-                        elif k == 'execution_time':
-                            execution_time = v
-                        elif k == 'level':
-                            level = v
-                        elif k == 'msg':
-                            msg = v
-                        elif k == 'pid':
-                            pid = v
-                        elif k == 'thread_name':
-                            thread_name = v
-                        elif k == 'ts':
-                            ts = v
+                        for k, v in json_data.items():
+                            if k == 'level':
+                                level = v
+                                if level == "debug":
+                                    continue
+                            elif k == 'pid':
+                                dbt_pid = v
 
-                    execution_time = find_execution_time(jsonStr)
+                        rule = r'\"node_info\": {(.*?)},'
+                        if re.search(rule, jsonStr) is not None:
+                            record = re.search(rule, jsonStr).group(1)
 
-                    rule = r'\"node_info\": {(.*?)},'
-                    if re.search(rule, jsonStr) is not None:
-                        record = re.search(rule, jsonStr).group(1)
+                            node_status = find_node_status(record)
+                            if node_status == 'compiling':
+                                continue
 
-                        materialized = find_materialized(record)
-                        node_finished_at = find_node_finished(record)
-                        node_name = find_node_name(record)
-                        node_path = find_node_path(record)
-                        node_started_at = find_node_started(record)
-                        node_status = find_node_status(record)
-                        resource_type = find_resource_type(record)
-                        rows_affected = find_rows_affected(record)
-                        failures = find_failures(record)
-                        message = find_message(record)
+                            node_finished_at = find_node_finished(record)
+                            node_name = find_node_name(record)
+                            node_started_at = find_node_started(record)
 
-                        this_row = [code, execution_time, level, msg, pid, thread_name, ts, materialized,
-                                    node_finished_at, node_name, node_path, node_started_at, node_status, resource_type,
-                                    rows_affected, failures, message]
+                            this_row = [node_name, execution_time, node_started_at, node_finished_at, node_status, dbt_pid]
 
-                    else:
-                        this_row = [code, execution_time, level, msg, pid, thread_name, ts]
-                    writer.writerow(this_row)
+                        else:
+                            continue
+
+                        writer.writerow(this_row)
 
 
 def main():
