@@ -2,18 +2,26 @@ import json
 import csv
 import os
 
-
-node_name_index = 0
+node_name_index = 9
+level_index = 2
 execution_time_index = 1
-start_time_index = 2
-log_report_name = "log_report3.json"
+start_time_index = 11
+finish_time_index = 8
+
+# node_name_index = 0
+# execution_time_index = 1
+# start_time_index = 2
+
+# store all logs' duration information
+log_report_name = "log_report4.json"
 
 # json file format:
 # {'model_name[level]': {'start_time1': 'duration', 'start_time2': 'duration', ...}}
 
 
-def generate_or_update_json(log_filename):
-    with open(log_filename, mode='r') as f:
+# TODO: error when log_report.json is not created in advance
+def generate_or_update_json():
+    with open("../res/all_dbt_log.csv", mode='r') as f:
         reader = csv.reader(f)
         next(reader)
         for row in reader:
@@ -44,12 +52,4 @@ def generate_or_update_json(log_filename):
 
 
 if __name__ == '__main__':
-    path = "/home/ceci/Desktop/log_report/res"
-    log_files = os.listdir(path)
-
-    print("searching dbt log files in directory: " + path)
-
-    for log_file_name in log_files:
-        print(log_file_name)
-        log_file_name = path + '/' + log_file_name
-        generate_or_update_json(log_file_name)
+    generate_or_update_json("../res/all_dbt_log.csv")

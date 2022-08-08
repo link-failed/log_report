@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request
-from getLogTableInfo import log_info_for_table
+from get_log_table_info import log_info_for_table
 import json
 import matplotlib.pyplot as plt
 
@@ -34,25 +34,25 @@ def draw_bar_from_json(json_file, model_name):
 
 
 def get_ave():
-    i = 0
-    total = 0
+    duration_list = []
     for item in items:
-        i += 1
-        total += float(item["duration"])
-    return total/i
+        duration_list.append(float(item["duration"]))
+    duration_list.sort()
+    return duration_list[-4]
+# should be over that
 
 
 @app.route('/draw_duration')
 def get_fig():
-    model_name = request.args.get("node_name") + "[debug]"
-    draw_bar_from_json("log_report3.json", model_name)
+    model_name = request.args.get("node_name")
+    draw_bar_from_json("log_report4.json", model_name)
     return "static/" + model_name + ".png"
 
 
 @app.route('/')
 def index():
     records = items
-    return render_template('query_log.html', title='Query Log', records=records, ave=get_ave())
+    return render_template('query_log.html', title='Query Log', records=records)
 
 
 if __name__ == '__main__':
