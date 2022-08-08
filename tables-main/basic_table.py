@@ -33,6 +33,15 @@ def draw_bar_from_json(json_file, model_name):
         plt.cla()
 
 
+def get_ave():
+    i = 0
+    total = 0
+    for item in items:
+        i += 1
+        total += float(item["duration"])
+    return total/i
+
+
 @app.route('/draw_duration')
 def get_fig():
     model_name = request.args.get("node_name") + "[debug]"
@@ -43,8 +52,7 @@ def get_fig():
 @app.route('/')
 def index():
     records = items
-    return render_template('query_log.html', title='Query Log',
-                           records=records)
+    return render_template('query_log.html', title='Query Log', records=records, ave=get_ave())
 
 
 if __name__ == '__main__':

@@ -4,28 +4,32 @@
   <table id="data" class="table table-striped">
     <thead>
       <tr>
-        <th>#</th>
         <th>node_name</th>
         <th>duration</th>
         <th>start_time</th>
         <th>finish_time</th>
         <th>pid</th>
         <th>history</th>
+        <th>info</th>
       </tr>
     </thead>
     <tbody>
       {% for record in records %}
         <tr>
-          <td></td>
           <td>{{ record.node_name }}</td>
           <td>{{ record.duration }}</td>
           <td>{{ record.start_time }}</td>
           <td>{{ record.finish_time }}</td>
           <td>{{ record.pid }}</td>
+
           <td id="history_fig">
             <button type="button" data-toggle="modal" data-target="#durationFig">
               Show
             </button>
+          </td>
+
+          <td align="center">
+            \
           </td>
         </tr>
       {% endfor %}
@@ -51,50 +55,45 @@
 
 {% block scripts %}
   <script>
+    var ave_duration = 0;
+    function setSignal() {
+      $("#data td:nth-child(2)").each(function () {
+        if (parseInt($(this).text(), 10) > 100) {
+          var icon_tag = "<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='red' class='bi bi-info-circle' viewBox='0 0 16 16'>\
+              <path d='M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z'/>\
+              <path d='m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533L8.93 6.588zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0z'/>\
+            </svg>"
+          $(this).parent("tr")[0].lastElementChild.innerHTML = icon_tag;
+        }
+      });
+    }
+
     $(document).ready(function () {
       $('#data').DataTable({
         columns: [
-          null,
           null,
           {searchable: false},
           {searchable: false},
           {searchable: false},
           {orderable: false, searchable: false},
+          {orderable: false, searchable: false},
           {orderable: false, searchable: false}
         ]
       });
 
-      $("#data td:nth-child(3)").each(function () {
-        if (parseInt($(this).text(), 10) > 1) {
-            $(this).parent("tr").css("background-color", "red");
-        }
-      });
     });
 
     $('#data').on('page.dt', function () {
-      $("#data td:nth-child(3)").each(function () {
-        if (parseInt($(this).text(), 10) > 1) {
-            $(this).parent("tr").css("background-color", "red");
-        }
-      });
+      setSignal();
     })
 
     $('#data').on('order.dt', function () {
-      $("#data td:nth-child(3)").each(function () {
-        if (parseFloat($(this).text(), 10) > 1) {
-            $(this).parent("tr").css("background-color", "red");
-        }
-      });
+      setSignal();
     })
 
     $('#data').on('search.dt', function () {
-      $("#data td:nth-child(3)").each(function () {
-        if (parseInt($(this).text(), 10) > 1) {
-            $(this).parent("tr").css("background-color", "red");
-        }
-      });
+      setSignal();
     })
-
 
     $('#data tbody').on('click', 'button', function () {
       var nodeName = $(this)[0].childNodes[0].parentNode.parentElement.parentNode.childNodes[1].childNodes[0].data;
@@ -110,7 +109,6 @@
         const popUp = new bootstrap.Modal('#durationFig', options);
         popUp.show();
       });
-
     });
 
 
