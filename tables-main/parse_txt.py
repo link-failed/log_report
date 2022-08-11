@@ -108,7 +108,6 @@ def process_this_log():
         
         all_log = f.readlines()
         start_index = [x for x in range(len(all_log)) if begin_flag in all_log[x]]
-        print(start_index)
         if not start_index:
             this_lines = all_log
         else:
@@ -187,7 +186,7 @@ def process_all_log():
                             record = re.search(rule, jsonStr).group(1)
 
                             node_status = find_node_status(record)
-                            if node_status == 'compiling':
+                            if node_status == 'compiling' or node_status == "error":
                                 continue
 
                             node_finished_at = find_node_finished(record)
