@@ -95,7 +95,8 @@ csv_header = ["node_name", "execution_time", "node_started_at", "node_finished_a
 def process_this_log():
     # find the last
     begin_flag = '"msg": "Running with dbt='
-    log_path = '../logs_example/'
+    log_path = '/home/ceci/Desktop/mimic-dbt/logs/'
+    # log_path = '../logs_example/'
     log_name = 'dbt.log'
     res_path = '../res/'
     res_name = 'this_dbt_log.csv'
@@ -107,10 +108,14 @@ def process_this_log():
         
         all_log = f.readlines()
         start_index = [x for x in range(len(all_log)) if begin_flag in all_log[x]]
+        print(start_index)
         if not start_index:
             this_lines = all_log
         else:
-            this_lines = all_log[start_index[-1]:]
+            this_lines = all_log[start_index[-3]:]
+
+        # for i in this_lines:
+        #     print(i)
 
         for jsonStr in this_lines:
             json_data = json.loads(jsonStr)
@@ -142,11 +147,13 @@ def process_this_log():
 
             else:
                 continue
+
             writer.writerow(this_row)
 
 
 def process_all_log():
-    log_path = '../logs_example/'
+    # log_path = '../logs_example/'
+    log_path = '/home/ceci/Desktop/mimic-dbt/logs/'
     res_path = '../res/'
     res_name = 'all_dbt_log.csv'
 
@@ -157,7 +164,7 @@ def process_all_log():
         writer.writerow(csv_header)
 
         for log_file in log_files:
-            if log_file[-4:] == '.log':
+            if log_file[:3] == 'dbt':
                 print("parse " + log_file + "...")
                 # To append, not to overwrite
                 with open(log_path + log_file, 'r') as f:

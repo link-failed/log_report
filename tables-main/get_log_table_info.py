@@ -1,4 +1,6 @@
 import csv
+import json
+import math
 
 node_name_index = 0
 execution_time_index = 1
@@ -8,27 +10,16 @@ status_index = 4
 pid_index = 5
 
 
-# TODO:
-# 1. generate report for all logs
-#    maintain a json file listing all models and their history duration
-# 2. show only current logs in front-end
-#    find the latest .csv file and parse_pg from the last "running on" flag
-# 3. permission issue (?)
-# path for Mint OS 20: /var/log/postgresql/
-
-
-# find latest log's filename
-# for pg, not dbt
-# def find_latest_log(log_directory):
-#     filenames = next(walk(log_directory), (None, None, []))[2]  # [] if no file
-#     latest_log = ""
-#     for filename in filenames:
-#         print("filename:" + filename)
-#         if filename[-4:] == ".csv":
-#             # if filename[-4:] == ".csv" and filename[:9] == "postgres-":
-#             if filename > latest_log:
-#                 latest_log = filename
-#     return log_directory + '/' + latest_log
+def get_ave_durations(model_name):
+    with open('log_report4.json', 'r') as f:
+        recent_durations = []
+        json_dict = json.load(f)
+        history_ts = sorted(json_dict[model_name].keys(), reverse=True)
+        if len(history_ts) > 5:
+            history_ts = history_ts[:5]
+        for ts in history_ts:
+            recent_durations.append(float(json_dict[model_name][ts]))
+    return sum(recent_durations)/len(recent_durations)
 
 
 # find the latest log's info
@@ -38,14 +29,20 @@ def log_info_for_table():
     with open(latest_log, mode='r') as f:
         reader = csv.reader(f)
         next(reader)
+
         for row in reader:
+            if get_ave_durations(row[node_name_index])*1.1 < float(row[execution_time_index]):
+                warning = True
+            else:
+                warning = False
             record_dict_list.append({
                 "node_name": row[node_name_index],
                 "duration": float(row[execution_time_index]),
                 "start_time": row[start_time_index],
                 "finish_time": row[finish_time_index],
                 "node_status": row[status_index],
-                "pid": row[pid_index]
+                "pid": row[pid_index],
+                "info": warning
             })
         return record_dict_list
 
