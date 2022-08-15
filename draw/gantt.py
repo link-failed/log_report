@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+from matplotlib.patches import Patch
 import pandas as pd
 import csv
 import os
@@ -13,7 +14,6 @@ pid_index = 5
 thread_name_index = 6
 
 fig, gnt = plt.subplots()
-
 
 gnt.set_xlabel('Duration')
 gnt.set_ylabel('Threads')
@@ -61,7 +61,12 @@ def get_threads():
 
 color_set = agSunset_7.mpl_colors + TealGrn_7.mpl_colors
 path = "/home/ceci/Desktop/mimic-dbt/models"
-dir_list = os.listdir(path)
+all_dir_list = os.listdir(path)
+dir_list = []
+for d in all_dir_list:
+    # delete other files or dirs
+    if d[0] != '.' and d[-4:] != '.sql' and d != 'example':
+        dir_list.append(d)
 
 
 def get_color_map():
@@ -70,10 +75,6 @@ def get_color_map():
      index of dir = index of color
     """
     color_map = {}
-    for d in dir_list:
-        # not save sql files
-        if d[0] == '.' or d[-4:] == '.sql':
-            dir_list.remove(d)
 
     for d in dir_list:
         color_map[d] = []
@@ -97,8 +98,14 @@ def get_color(query_name):
     return color_set[list(color_map).index(res)]
 
 
-gnt.set_yticklabels(get_names())
+c_dict = {}
+for i in range(len(dir_list)):
+    c_dict[dir_list[i]] = color_set[i]
 
+legend_elements = [Patch(facecolor=c_dict[i], label=i) for i in c_dict]
+plt.legend(handles=legend_elements, bbox_to_anchor=(1.0005, 1), loc="upper left")
+plt.subplots_adjust(top=0.84, bottom=0.18, left=0.105, right=0.85, hspace=0.2, wspace=0.2)
+gnt.set_yticklabels(get_names())
 # Setting graph attribute
 # TODO: y labels cannot work
 gnt.grid(True)
@@ -108,7 +115,7 @@ plt.yticks(range(len(get_threads())), get_threads())
 
 for i in get_queries():
     model_name = i["query_name"]
-    gnt.broken_barh([(i["start_time"], i["duration"])], (int(i["thread_name"])*10, 8), facecolors=get_color(model_name))
-
+    gnt.broken_barh([(i["start_time"], i["duration"])], (int(i["thread_name"]) * 10, 8),
+                    facecolors=get_color(model_name))
 
 plt.show()
