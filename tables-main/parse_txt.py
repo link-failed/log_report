@@ -111,7 +111,7 @@ def process_this_log():
         if not start_index:
             this_lines = all_log
         else:
-            this_lines = all_log[start_index[-3]:]
+            this_lines = all_log[start_index[-1]:]
 
         # for i in this_lines:
         #     print(i)

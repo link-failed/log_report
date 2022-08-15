@@ -1,6 +1,5 @@
 import csv
 import json
-import math
 
 node_name_index = 0
 execution_time_index = 1
@@ -35,7 +34,7 @@ def log_info_for_table():
         next(reader)
 
         for row in reader:
-            if get_ave_durations(row[node_name_index])*1.25 < float(row[execution_time_index]):
+            if get_ave_durations(row[node_name_index])*1.20 < float(row[execution_time_index]):
                 warning = True
             else:
                 warning = False
