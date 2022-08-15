@@ -14,27 +14,10 @@ thread_name_index = 6
 
 fig, gnt = plt.subplots()
 
-# comorbidity = []
-# cookbook = []
-# demographics = []
-# diagnosis = []
-# duration = []
-# example = []
-# firstday = []
-# fluid_balance = []
-# functions = []
-# organfailure = []
-# pivot = []
-# sepsis = []
-# severityscores = []
-# treatment = []
 
 gnt.set_xlabel('Duration')
 gnt.set_ylabel('Threads')
 
-
-# Setting ticks on y-axis
-# gnt.set_yticks([15, 25, 35])
 
 def get_queries():
     query_list = []
@@ -105,9 +88,6 @@ def get_color_map():
 
 def get_color(query_name):
     color_map = get_color_map()
-    # print("map: ")
-    # for i in color_map:
-    #     print(i)
     res = ""
     for this_dir in dir_list:
         for this_model in color_map[this_dir]:
@@ -120,12 +100,12 @@ def get_color(query_name):
 gnt.set_yticklabels(get_names())
 
 # Setting graph attribute
+# TODO: y labels cannot work
 gnt.grid(True)
 labels = [str(x) for x in get_threads()]
-# gnt.set_yticklabels(labels)
-gnt.set_yticklabels(['1', '2', '3', '4', '5'])
-
+gnt.set_yticklabels(labels)
 plt.yticks(range(len(get_threads())), get_threads())
+
 for i in get_queries():
     model_name = i["query_name"]
     gnt.broken_barh([(i["start_time"], i["duration"])], (int(i["thread_name"])*10, 8), facecolors=get_color(model_name))
