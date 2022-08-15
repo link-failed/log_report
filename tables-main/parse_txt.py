@@ -89,7 +89,8 @@ def find_message(line):
     return str(res).replace("\"", "")
 
 
-csv_header = ["node_name", "execution_time", "node_started_at", "node_finished_at", "node_status", "dbt_pid"]
+csv_header = ["node_name", "execution_time", "node_started_at", "node_finished_at", "node_status", "dbt_pid",
+              "thread_name"]
 
 
 def process_this_log():
@@ -129,6 +130,8 @@ def process_this_log():
                         continue
                 elif k == 'pid':
                     dbt_pid = v
+                elif k == 'thread_name':
+                    thread_name = int(v[7:])
 
             rule = r'\"node_info\": {(.*?)},'
             if re.search(rule, jsonStr) is not None:
@@ -142,7 +145,8 @@ def process_this_log():
                 node_name = find_node_name(record)
                 node_started_at = find_node_started(record)
 
-                this_row = [node_name, execution_time, node_started_at, node_finished_at, node_status, dbt_pid]
+                this_row = [node_name, execution_time, node_started_at, node_finished_at, node_status, dbt_pid,
+                            thread_name]
 
             else:
                 continue
@@ -180,6 +184,8 @@ def process_all_log():
                                     continue
                             elif k == 'pid':
                                 dbt_pid = v
+                            elif k == 'thread_name':
+                                thread_name = int(v[7:])
 
                         rule = r'\"node_info\": {(.*?)},'
                         if re.search(rule, jsonStr) is not None:
@@ -193,7 +199,8 @@ def process_all_log():
                             node_name = find_node_name(record)
                             node_started_at = find_node_started(record)
 
-                            this_row = [node_name, execution_time, node_started_at, node_finished_at, node_status, dbt_pid]
+                            this_row = [node_name, execution_time, node_started_at, node_finished_at, node_status,
+                                        dbt_pid, thread_name]
 
                         else:
                             continue

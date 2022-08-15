@@ -17,7 +17,6 @@
 #     print(json_dict)
 
 
-duration_list = [1, 3, 5, 2, 4, 6]
-duration_list.sort()
-print(duration_list)
-print(duration_list[-3])
+from palettable.cartocolors.sequential import agSunset_7, TealGrn_7
+color_set = agSunset_7.mpl_colors + TealGrn_7.mpl_colors
+print(len(color_set))

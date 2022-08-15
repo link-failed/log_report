@@ -32,6 +32,7 @@ def generate_or_update_json():
                     node_name = row[node_name_index]
                     start_time = row[start_time_index]
                     duration = row[execution_time_index]
+                    # pid = row[pid_index]
                     if os.stat(log_report_name).st_size > 0:
                         json_dict = json.load(res_f)
                         if node_name not in json_dict.keys():
