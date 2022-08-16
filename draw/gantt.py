@@ -106,6 +106,7 @@ legend_elements = [Patch(facecolor=c_dict[i], label=i) for i in c_dict]
 plt.legend(handles=legend_elements, bbox_to_anchor=(1.0005, 1), loc="upper left")
 plt.subplots_adjust(top=0.84, bottom=0.18, left=0.105, right=0.85, hspace=0.2, wspace=0.2)
 gnt.set_yticklabels(get_names())
+
 # Setting graph attribute
 # TODO: y labels cannot work
 gnt.grid(True)
