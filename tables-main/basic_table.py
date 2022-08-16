@@ -39,6 +39,7 @@ def get_bar():
         duration_list.append(float(item["duration"]))
     duration_list.sort()
     if len(duration_list) <= 4:
+        # disable the top 3 longest query info
         return float('inf')
     else:
         return duration_list[-4]
