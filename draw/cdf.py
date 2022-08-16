@@ -24,17 +24,18 @@ def get_sec_list():
     return sec_list
 
 
-x = get_sec_list()
-frequency = [1] * len(x)
-pdf = frequency/np.sum(frequency)
-cdf = np.cumsum(pdf)
-print(x)
-print(cdf)
+if __name__ == '__main__':
+    x = get_sec_list()
+    frequency = [1] * len(x)
+    pdf = frequency/np.sum(frequency)
+    cdf = np.cumsum(pdf)
+    print(x)
+    print(cdf)
 
-plt.plot(x, cdf, marker="o", label="with 5 threads")
-# plt.plot(x, cdf, marker="o", label="CDF")
-plt.ylim(0, 1.15)
-plt.xlabel("duration(sec)")
-plt.title("cdf for queries")
-plt.legend()
-plt.show()
+    plt.plot(x, cdf, marker="o", label="with 5 threads")
+    # plt.plot(x, cdf, marker="o", label="CDF")
+    plt.ylim(0, 1.15)
+    plt.xlabel("duration(sec)")
+    plt.title("cdf for queries")
+    plt.legend()
+    plt.show()

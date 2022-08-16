@@ -13,11 +13,6 @@ status_index = 4
 pid_index = 5
 thread_name_index = 6
 
-fig, gnt = plt.subplots()
-
-gnt.set_xlabel('Duration')
-gnt.set_ylabel('Threads')
-
 
 def get_queries():
     query_list = []
@@ -98,25 +93,31 @@ def get_color(query_name):
     return color_set[list(color_map).index(res)]
 
 
-c_dict = {}
-for i in range(len(dir_list)):
-    c_dict[dir_list[i]] = color_set[i]
+if __name__ == '__main__':
+    fig, gnt = plt.subplots()
 
-legend_elements = [Patch(facecolor=c_dict[i], label=i) for i in c_dict]
-plt.legend(handles=legend_elements, bbox_to_anchor=(1.0005, 1), loc="upper left")
-plt.subplots_adjust(top=0.84, bottom=0.18, left=0.105, right=0.85, hspace=0.2, wspace=0.2)
-gnt.set_yticklabels(get_names())
+    gnt.set_xlabel('Duration')
+    gnt.set_ylabel('Threads')
 
-# Setting graph attribute
-# TODO: y labels cannot work
-gnt.grid(True)
-labels = [str(x) for x in get_threads()]
-gnt.set_yticklabels(labels)
-plt.yticks(range(len(get_threads())), get_threads())
+    c_dict = {}
+    for i in range(len(dir_list)):
+        c_dict[dir_list[i]] = color_set[i]
 
-for i in get_queries():
-    model_name = i["query_name"]
-    gnt.broken_barh([(i["start_time"], i["duration"])], (int(i["thread_name"]) * 10, 8),
-                    facecolors=get_color(model_name))
+    legend_elements = [Patch(facecolor=c_dict[i], label=i) for i in c_dict]
+    plt.legend(handles=legend_elements, bbox_to_anchor=(1.0005, 1), loc="upper left")
+    plt.subplots_adjust(top=0.84, bottom=0.18, left=0.105, right=0.85, hspace=0.2, wspace=0.2)
+    gnt.set_yticklabels(get_names())
 
-plt.show()
+    # Setting graph attribute
+    # TODO: y labels cannot work
+    gnt.grid(True)
+    labels = [str(x) for x in get_threads()]
+    gnt.set_yticklabels(labels)
+    plt.yticks(range(len(get_threads())), get_threads())
+
+    for i in get_queries():
+        model_name = i["query_name"]
+        gnt.broken_barh([(i["start_time"], i["duration"])], (int(i["thread_name"]) * 10, 8),
+                        facecolors=get_color(model_name))
+
+    plt.show()

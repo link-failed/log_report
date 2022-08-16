@@ -38,7 +38,10 @@ def get_bar():
     for item in items:
         duration_list.append(float(item["duration"]))
     duration_list.sort()
-    return duration_list[-4]
+    if len(duration_list) <= 4:
+        return float('inf')
+    else:
+        return duration_list[-4]
 # should be over that
 
 
