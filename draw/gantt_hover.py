@@ -13,8 +13,6 @@ query_name_index = 0
 execution_time_index = 1
 start_time_index = 2
 finish_time_index = 3
-status_index = 4
-pid_index = 5
 thread_name_index = 6
 
 
@@ -22,7 +20,7 @@ process_this_log()
 
 
 def get_queries():
-    query_list = []
+    res = []
     latest_log = "res.csv"
     with open(latest_log, mode='r') as f:
         reader = csv.reader(f)
@@ -33,14 +31,13 @@ def get_queries():
             start_time = pd.to_datetime(start_time_str, format='%Y-%m-%dT%H:%M:%S')
             finish_time = pd.to_datetime(finish_time_str, format='%Y-%m-%dT%H:%M:%S')
             query_duration = finish_time - start_time
-            query_list.append({
+            res.append({
                 "query_name": row[query_name_index],
                 "duration": query_duration,
                 "start_time": start_time,
-                "query_status": row[status_index],
                 "thread_name": row[thread_name_index]
             })
-    return query_list
+    return res
 
 
 thread_list = []
@@ -96,7 +93,7 @@ plt.subplots_adjust(top=0.84, bottom=0.18, left=0.105, right=0.85, hspace=0.2, w
 gnt.set_yticks([int(thread_name[7:]) * 10 + 4 for thread_name in thread_list])
 gnt.set_yticklabels(thread_list)
 
-gnt.grid(True)
+gnt.grid(axis='x')
 
 for i in get_queries():
     model_name = i["query_name"]
@@ -106,8 +103,8 @@ for i in get_queries():
                         facecolors=get_color(model_name))
 
 annot = gnt.annotate("", xy=(0, 0), xytext=(20, 30), textcoords="offset points",
-                     bbox=dict(boxstyle="round", fc="yellow", ec="b", lw=2),
-                     arrowprops=dict(arrowstyle="->"))
+                     bbox=dict(boxstyle="round", fc="yellow", ec="black", lw=1),
+                     arrowprops=dict(arrowstyle="->"), fontsize=12)
 annot.set_visible(False)
 
 fig.canvas.mpl_connect("motion_notify_event", hover)
