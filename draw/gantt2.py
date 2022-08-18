@@ -2,13 +2,12 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 import pandas as pd
 import csv
-import os
 from palettable.cartocolors.sequential import agSunset_7, TealGrn_7
 from palettable.lightbartlein.diverging import BlueGray_8, BrownBlue10_10
 
 """
-    1. run parse_txt.py to generate res/this_dbt_log.csv
-    2. run gantt.py to draw Gantt graph
+    1. run tables-main/parse_txt.py to generate res/this_dbt_log.csv
+    2. run gantt2.py to draw Gantt graph
 """
 
 # 27 colors in total
@@ -45,11 +44,11 @@ def get_queries():
 
 
 def get_names():
-    name_list = []
+    res = []
     query_list = get_queries()
     for query in query_list:
-        name_list.append(query["query_name"])
-    return name_list
+        res.append(query["query_name"])
+    return res
 
 
 def get_threads():
@@ -62,43 +61,12 @@ def get_threads():
     return sorted(thread_list)
 
 
-path = "/home/ceci/Desktop/mimic-dbt/models"
-all_dir_list = os.listdir(path)
-dir_list = []
-for d in all_dir_list:
-    # delete other files or dirs
-    if d[0] != '.' and d[-4:] != '.sql' and d != 'example':
-        dir_list.append(d)
-
-
-def get_color_map():
-    """
-     color_map: ['dir1': [model1, model2, model3], 'dir2': [model1, model2, ...] ...]
-     index of dir = index of color
-    """
-    color_map = {}
-
-    for d in dir_list:
-        color_map[d] = []
-        # get models inside the dir
-        model_list = os.listdir(path + '/' + d)
-        for model in model_list:
-            # drop ".sql"
-            color_map[d].append(model[:-4])
-
-    return color_map
+name_list = get_names()
 
 
 def get_color(query_name):
-    print("query_name: "+query_name)
-    color_map = get_color_map()
-    res = ""
-    for this_dir in dir_list:
-        for this_model in color_map[this_dir]:
-            if this_model == query_name:
-                res = this_dir
-                break
-    return color_set[list(color_map).index(res)]
+    color_index = name_list.index(query_name)
+    return color_set[color_index]
 
 
 if __name__ == '__main__':
@@ -108,8 +76,9 @@ if __name__ == '__main__':
     gnt.set_ylabel('Threads')
 
     c_dict = {}
-    for i in range(len(dir_list)):
-        c_dict[dir_list[i]] = color_set[i]
+
+    for i in range(len(name_list)):
+        c_dict[name_list[i]] = color_set[i]
 
     legend_elements = [Patch(facecolor=c_dict[i], label=i) for i in c_dict]
     plt.legend(handles=legend_elements, bbox_to_anchor=(1.0005, 1), loc="upper left")

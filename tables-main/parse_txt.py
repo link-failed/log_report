@@ -4,18 +4,8 @@ import re
 import os
 from generate_json_report import generate_or_update_json
 
-'''
-json log format: https://docs.getdbt.com/reference/events-logging#structured-logging
-command: dbt --log-format json run
 
-process:
- 1. dbt.log -> [parse_txt.py] -> this_dbt_log.csv
-    dbt.log -> [parse_txt.py] -> all_dbt_log.csv
- 2. this_dbt_log.csv -> [parse_txt.py] -> [generate_json_report.py] -> log_report.json
-    log_report.json -> [basic_table.py] -> Flask front-end
- 3. (click button to show history duration figure)
-    this_dbt_log.csv -> [[basic_table.py]] -> bar chart
-'''
+log_path = '../logs_example/'
 
 
 def find_node(line):
@@ -96,8 +86,7 @@ csv_header = ["node_name", "execution_time", "node_started_at", "node_finished_a
 def process_this_log():
     # find the last
     begin_flag = '"msg": "Running with dbt='
-    log_path = '/home/ceci/Desktop/mimic-dbt/logs/'
-    # log_path = '../logs_example/'
+    # log_path = '/home/ceci/Desktop/mimic-dbt/logs/'
     log_name = 'dbt.log'
     res_path = '../res/'
     res_name = 'this_dbt_log.csv'
@@ -131,7 +120,8 @@ def process_this_log():
                 elif k == 'pid':
                     dbt_pid = v
                 elif k == 'thread_name':
-                    thread_name = int(v[7:])
+                    thread_name = v
+                    # thread_name = int(v[7:])
 
             rule = r'\"node_info\": {(.*?)},'
             if re.search(rule, jsonStr) is not None:
@@ -156,7 +146,6 @@ def process_this_log():
 
 def process_all_log():
     # log_path = '../logs_example/'
-    log_path = '/home/ceci/Desktop/mimic-dbt/logs/'
     res_path = '../res/'
     res_name = 'all_dbt_log.csv'
 
@@ -185,7 +174,7 @@ def process_all_log():
                             elif k == 'pid':
                                 dbt_pid = v
                             elif k == 'thread_name':
-                                thread_name = int(v[7:])
+                                thread_name = v
 
                         rule = r'\"node_info\": {(.*?)},'
                         if re.search(rule, jsonStr) is not None:
