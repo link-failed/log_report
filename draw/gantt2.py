@@ -23,7 +23,7 @@ thread_name_index = 6
 
 def get_queries():
     query_list = []
-    latest_log = "/home/ceci/Desktop/log_report/res/this_dbt_log.csv"
+    latest_log = "../res/this_dbt_log.csv"
     with open(latest_log, mode='r') as f:
         reader = csv.reader(f)
         next(reader)
@@ -95,8 +95,11 @@ if __name__ == '__main__':
     for i in get_queries():
         model_name = i["query_name"]
         if model_name != 'code_status' and model_name != 'echo_data':
-            print("model: " + str(i))
+            # print("model: " + str(i))
             gnt.broken_barh([(i["start_time"], i["duration"])], (int(i["thread_name"][7:]) * 10, 8),
                             facecolors=get_color(model_name))
+
+    for i, v in enumerate(y):
+        gnt.text(v + 3, i + .25, str(v), color='blue', fontweight='bold')
 
     plt.show()

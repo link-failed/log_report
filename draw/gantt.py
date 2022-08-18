@@ -90,7 +90,6 @@ def get_color_map():
 
 
 def get_color(query_name):
-    print("query_name: "+query_name)
     color_map = get_color_map()
     res = ""
     for this_dir in dir_list:
@@ -126,7 +125,7 @@ if __name__ == '__main__':
     for i in get_queries():
         model_name = i["query_name"]
         if model_name != 'code_status' and model_name != 'echo_data':
-            print("model: " + str(i))
+            # print("model: " + str(i))
             gnt.broken_barh([(i["start_time"], i["duration"])], (int(i["thread_name"][7:]) * 10, 8),
                             facecolors=get_color(model_name))
 
