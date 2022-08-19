@@ -5,6 +5,8 @@ import csv
 from log_parser import process_this_log
 from palettable.cartocolors.sequential import agSunset_7, TealGrn_7
 from palettable.lightbartlein.diverging import BlueGray_8, BrownBlue10_10
+import mpld3
+
 
 # 27 colors in total
 color_set = agSunset_7.mpl_colors + TealGrn_7.mpl_colors + BlueGray_8.mpl_colors + BrownBlue10_10.mpl_colors[:5]
@@ -104,9 +106,18 @@ for i in get_queries():
 
 annot = gnt.annotate("", xy=(0, 0), xytext=(20, 30), textcoords="offset points",
                      bbox=dict(boxstyle="round", fc="yellow", ec="black", lw=1),
-                     arrowprops=dict(arrowstyle="->"), fontsize=12)
+                     arrowprops=dict(arrowstyle="->"), fontsize=16)
 annot.set_visible(False)
 
+fig.set_figheight(10)
+fig.set_figwidth(18)
 fig.canvas.mpl_connect("motion_notify_event", hover)
 
+# html_str = mpld3.fig_to_html(fig)
+# Html_file= open("index.html","w")
+# Html_file.write(html_str)
+# Html_file.close()
+
+# plt.savefig("1.svg")
+plt.subplots_adjust(top=0.855, bottom=0.18, left=0.095, right=0.80, hspace=0.2, wspace=0.2)
 plt.show()
