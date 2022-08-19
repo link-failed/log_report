@@ -18,7 +18,7 @@ finish_time_index = 3
 thread_name_index = 6
 
 
-process_this_log()
+# process_this_log()
 
 
 def get_queries():
@@ -39,6 +39,9 @@ def get_queries():
                 "start_time": start_time,
                 "thread_name": row[thread_name_index]
             })
+        first_start_time = res[0]["start_time"]
+        for record in res:
+            record["start_time"] = (record["start_time"] - first_start_time).total_seconds()
     return res
 
 
@@ -81,7 +84,7 @@ def hover(event):
 
 
 fig, gnt = plt.subplots()
-gnt.set_xlabel('Duration')
+gnt.set_xlabel('Duration(sec)')
 gnt.set_ylabel('Threads')
 c_dict = {}
 
@@ -101,7 +104,7 @@ for i in get_queries():
     model_name = i["query_name"]
     if model_name != 'code_status' and model_name != 'echo_data':
         # print("model: " + str(i))
-        gnt.broken_barh([(i["start_time"], i["duration"])], (int(i["thread_name"][7:]) * 10, 8),
+        gnt.broken_barh([(i["start_time"], i["duration"].total_seconds())], (int(i["thread_name"][7:]) * 10, 8),
                         facecolors=get_color(model_name))
 
 annot = gnt.annotate("", xy=(0, 0), xytext=(20, 30), textcoords="offset points",
