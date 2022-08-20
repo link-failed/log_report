@@ -81,7 +81,7 @@ csv_header = ["node_name", "execution_time", "node_started_at", "node_finished_a
 def process_this_log():
     # find the last
     begin_flag = '"msg": "Running with dbt='
-    log_name = 'dbt.log'
+    log_name = '/home/ceci/Desktop/mimic-dbt/logs/dbt.log'
     res_name = 'res.csv'
     with open(log_name, 'r') as f, open(res_name, 'w') as output:
         writer = csv.writer(output)

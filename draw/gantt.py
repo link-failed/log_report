@@ -23,8 +23,8 @@ thread_name_index = 6
 
 
 def get_queries():
-    query_list = []
-    latest_log = "/home/ceci/Desktop/log_report/res/this_dbt_log.csv"
+    res = []
+    latest_log = "res.csv"
     with open(latest_log, mode='r') as f:
         reader = csv.reader(f)
         next(reader)
@@ -34,14 +34,17 @@ def get_queries():
             start_time = pd.to_datetime(start_time_str, format='%Y-%m-%dT%H:%M:%S')
             finish_time = pd.to_datetime(finish_time_str, format='%Y-%m-%dT%H:%M:%S')
             query_duration = finish_time - start_time
-            query_list.append({
+            res.append({
                 "query_name": row[query_name_index],
                 "duration": query_duration,
                 "start_time": start_time,
                 "query_status": row[status_index],
                 "thread_name": row[thread_name_index]
             })
-    return query_list
+        first_start_time = res[0]["start_time"]
+        for record in res:
+            record["start_time"] = (record["start_time"] - first_start_time).total_seconds()
+    return res
 
 
 def get_names():
@@ -126,7 +129,7 @@ if __name__ == '__main__':
         model_name = i["query_name"]
         if model_name != 'code_status' and model_name != 'echo_data':
             # print("model: " + str(i))
-            gnt.broken_barh([(i["start_time"], i["duration"])], (int(i["thread_name"][7:]) * 10, 8),
+            gnt.broken_barh([(i["start_time"], i["duration"].total_seconds())], (int(i["thread_name"][7:]) * 10, 8),
                             facecolors=get_color(model_name))
 
     plt.show()

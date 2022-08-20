@@ -5,8 +5,8 @@ import os
 from generate_json_report import generate_or_update_json
 
 
-# log_path = '/home/ceci/Desktop/mimic-dbt/logs/'
-log_path = '../logs_example/'
+log_path = '/home/ceci/Desktop/mimic-dbt/logs/'
+# log_path = '../logs_example/'
 
 
 def find_node(line):
@@ -198,7 +198,7 @@ def process_all_log():
 def main():
     # process_all_log()
     process_this_log()
-    # generate_or_update_json()
+    generate_or_update_json()
 
 
 if __name__ == "__main__":
