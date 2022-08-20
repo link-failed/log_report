@@ -23,14 +23,17 @@ thread_name_index = 6
 
 def get_queries():
     res = []
-    latest_log = "res(seperate).csv"
+    latest_log = "res(5with12).csv"
     with open(latest_log, mode='r') as f:
         reader = csv.reader(f)
+        start_time_list = []
+        # skip first line (csv header)
         next(reader)
         for row in reader:
             start_time_str = row[start_time_index]
             finish_time_str = row[finish_time_index]
             start_time = pd.to_datetime(start_time_str, format='%Y-%m-%dT%H:%M:%S')
+            start_time_list.append(start_time)
             finish_time = pd.to_datetime(finish_time_str, format='%Y-%m-%dT%H:%M:%S')
             query_duration = finish_time - start_time
             res.append({
@@ -39,7 +42,7 @@ def get_queries():
                 "start_time": start_time,
                 "thread_name": row[thread_name_index]
             })
-        first_start_time = res[0]["start_time"]
+        first_start_time = sorted(start_time_list)[0]
         last_finish_time = res[-1]["start_time"] + res[-1]["duration"]
         for record in res:
             record["start_seconds"] = (record["start_time"] - first_start_time).total_seconds()
@@ -53,17 +56,22 @@ query_list, whole_duration = get_queries()
 
 
 def get_ku_duration():
+    """
+        find kdigo_uo.sql's duration
+        if it is separated, the duration begins from ur_stg_1.sql and ends at kdigo_uo.sql
+        if it is not, the duration begins from kdigo_uo.sql and also ends at kdigo_uo.sql
+    """
     ku_start = "!"
     for q in query_list:
-        if q["query_name"] == "ur3_stg_1":
+        if q["query_name"][-6:] == "_stg_1" and q["query_name"][:2] == "ur":
             ku_start = q["start_time"]
         if q["query_name"] == "kdigo_uo":
             uo_start = q["start_time"]
-            ku_end = q["start_time"] + q["duration"]
+            uo_end = q["start_time"] + q["duration"]
     if ku_start == "!":
-        return (ku_end - uo_start).total_seconds()
+        return (uo_end - uo_start).total_seconds()
     else:
-        return (ku_end - ku_start).total_seconds()
+        return (uo_end - ku_start).total_seconds()
 
 
 for query in query_list:
@@ -125,6 +133,7 @@ def hover(event):
         for coll_id, broken_bar_collection in enumerate(gnt.collections):
             cont, ind = broken_bar_collection.contains(event)
             if cont:
+                # print(coll_id)
                 update_annot(coll_id, event.xdata, event.ydata)
                 annot.set_visible(True)
                 fig.canvas.draw_idle()
@@ -167,15 +176,9 @@ fig.set_figheight(10)
 fig.set_figwidth(18)
 fig.canvas.mpl_connect("motion_notify_event", hover)
 
-# html_str = mpld3.fig_to_html(fig)
-# Html_file= open("index.html","w")
-# Html_file.write(html_str)
-# Html_file.close()
-
-# plt.savefig("1.svg")
 whole_duration_text = "total duration: " + str(whole_duration)
 ku_duration_text = "ku duration: " + str(get_ku_duration())
-gnt.text(0.98, 0.005, whole_duration_text + "\n" + ku_duration_text,
+gnt.text(1, 1.005, whole_duration_text + "\n" + ku_duration_text,
          verticalalignment='bottom', horizontalalignment='right',
          transform=gnt.transAxes,
          color='blue', fontsize=14)
