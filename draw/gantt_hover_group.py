@@ -23,7 +23,7 @@ thread_name_index = 6
 
 def get_queries():
     res = []
-    latest_log = "res(5with12).csv"
+    latest_log = "res/res(3with3).csv"
     with open(latest_log, mode='r') as f:
         reader = csv.reader(f)
         start_time_list = []
@@ -63,7 +63,7 @@ def get_ku_duration():
     """
     ku_start = "!"
     for q in query_list:
-        if q["query_name"][-6:] == "_stg_1" and q["query_name"][:2] == "ur":
+        if q["query_name"] == "ur_stg_1":
             ku_start = q["start_time"]
         if q["query_name"] == "kdigo_uo":
             uo_start = q["start_time"]
@@ -127,13 +127,15 @@ def update_annot(coll_id, x, y):
     annot.get_bbox_patch().set_alpha(0.9)
 
 
+print(name_list)
+
+
 def hover(event):
     vis = annot.get_visible()
     if event.inaxes == gnt:
         for coll_id, broken_bar_collection in enumerate(gnt.collections):
             cont, ind = broken_bar_collection.contains(event)
             if cont:
-                # print(coll_id)
                 update_annot(coll_id, event.xdata, event.ydata)
                 annot.set_visible(True)
                 fig.canvas.draw_idle()
@@ -166,6 +168,9 @@ for i in query_list:
         # print("model: " + str(i))
         gnt.broken_barh([(i["start_seconds"], i["duration"].total_seconds())], (int(i["thread_name"][7:]) * 10, 8),
                         facecolors=get_color(model_name))
+    else:
+        gnt.broken_barh([(i["start_seconds"], i["duration"].total_seconds())], (int(i["thread_name"][7:]) * 10, 8),
+                        facecolors="white")
 
 annot = gnt.annotate("", xy=(0, 0), xytext=(20, 30), textcoords="offset points",
                      bbox=dict(boxstyle="round", fc="yellow", ec="black", lw=1),

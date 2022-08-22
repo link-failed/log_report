@@ -1,0 +1,2 @@
+node_name,execution_time,node_started_at,node_finished_at,node_status,dbt_pid,thread_name
+kdigo_uo,422.88381147384644,2022-08-20T21:23:20.750803,2022-08-20T21:30:23.636879,success,14171,Thread-1

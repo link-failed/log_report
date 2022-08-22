@@ -23,7 +23,7 @@ thread_name_index = 6
 
 def get_queries():
     res = []
-    latest_log = "res.csv"
+    latest_log = "res/ku_test3_1_thread.csv"
     with open(latest_log, mode='r') as f:
         reader = csv.reader(f)
         next(reader)
@@ -106,6 +106,9 @@ for i in get_queries():
         # print("model: " + str(i))
         gnt.broken_barh([(i["start_time"], i["duration"].total_seconds())], (int(i["thread_name"][7:]) * 10, 8),
                         facecolors=get_color(model_name))
+    else:
+        gnt.broken_barh([(i["start_seconds"], i["duration"].total_seconds())], (int(i["thread_name"][7:]) * 10, 8),
+                        facecolors="white")
 
 annot = gnt.annotate("", xy=(0, 0), xytext=(20, 30), textcoords="offset points",
                      bbox=dict(boxstyle="round", fc="yellow", ec="black", lw=1),

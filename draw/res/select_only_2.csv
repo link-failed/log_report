@@ -1,0 +1,2 @@
+node_name,execution_time,node_started_at,node_finished_at,node_status,dbt_pid,thread_name
+select_2,0.6167652606964111,2022-08-20T21:12:49.056765,2022-08-20T21:12:49.675925,success,13705,Thread-1
