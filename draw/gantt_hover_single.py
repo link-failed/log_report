@@ -23,14 +23,17 @@ thread_name_index = 6
 
 def get_queries():
     res = []
-    latest_log = "res/ku_test3_1_thread.csv"
+    latest_log = "res_single/res(3with3).csv"
     with open(latest_log, mode='r') as f:
         reader = csv.reader(f)
+        start_time_list = []
+        # skip first line (csv header)
         next(reader)
         for row in reader:
             start_time_str = row[start_time_index]
             finish_time_str = row[finish_time_index]
             start_time = pd.to_datetime(start_time_str, format='%Y-%m-%dT%H:%M:%S')
+            start_time_list.append(start_time)
             finish_time = pd.to_datetime(finish_time_str, format='%Y-%m-%dT%H:%M:%S')
             query_duration = finish_time - start_time
             res.append({
@@ -39,16 +42,20 @@ def get_queries():
                 "start_time": start_time,
                 "thread_name": row[thread_name_index]
             })
-        first_start_time = res[0]["start_time"]
+        first_start_time = sorted(start_time_list)[0]
+        last_finish_time = res[-1]["start_time"] + res[-1]["duration"]
         for record in res:
-            record["start_time"] = (record["start_time"] - first_start_time).total_seconds()
-    return res
+            record["start_seconds"] = (record["start_time"] - first_start_time).total_seconds()
+    return res, (last_finish_time-first_start_time).total_seconds()
 
 
 thread_list = []
 name_list = []
 duration_list = []
-query_list = get_queries()
+query_list, whole_duration = get_queries()
+
+print(query_list)
+
 for query in query_list:
     name_list.append(query["query_name"])
     thread_list.append(query["thread_name"])
@@ -89,6 +96,7 @@ gnt.set_ylabel('Threads')
 c_dict = {}
 
 for i in range(len(name_list)):
+    print(i)
     c_dict[name_list[i]] = color_set[i]
 
 legend_elements = [Patch(facecolor=c_dict[i], label=i) for i in c_dict]
@@ -100,15 +108,12 @@ gnt.set_yticklabels(thread_list)
 
 gnt.grid(axis='x')
 
-for i in get_queries():
+for i in query_list:
     model_name = i["query_name"]
     if model_name != 'code_status' and model_name != 'echo_data':
         # print("model: " + str(i))
-        gnt.broken_barh([(i["start_time"], i["duration"].total_seconds())], (int(i["thread_name"][7:]) * 10, 8),
-                        facecolors=get_color(model_name))
-    else:
         gnt.broken_barh([(i["start_seconds"], i["duration"].total_seconds())], (int(i["thread_name"][7:]) * 10, 8),
-                        facecolors="white")
+                        facecolors=get_color(model_name))
 
 annot = gnt.annotate("", xy=(0, 0), xytext=(20, 30), textcoords="offset points",
                      bbox=dict(boxstyle="round", fc="yellow", ec="black", lw=1),
@@ -119,11 +124,11 @@ fig.set_figheight(10)
 fig.set_figwidth(18)
 fig.canvas.mpl_connect("motion_notify_event", hover)
 
-# html_str = mpld3.fig_to_html(fig)
-# Html_file= open("index.html","w")
-# Html_file.write(html_str)
-# Html_file.close()
+whole_duration_text = "total duration: " + str(whole_duration)
+gnt.text(1, 1.005, whole_duration_text,
+         verticalalignment='bottom', horizontalalignment='right',
+         transform=gnt.transAxes,
+         color='blue', fontsize=14)
 
-# plt.savefig("1.svg")
 plt.subplots_adjust(top=0.855, bottom=0.18, left=0.095, right=0.80, hspace=0.2, wspace=0.2)
 plt.show()

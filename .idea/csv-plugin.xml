@@ -24,6 +24,13 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="/draw/res/res(12with12).csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="/draw/res/res(12with3).csv">
           <value>
             <Attribute>
@@ -38,6 +45,20 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="/draw/res/res(1with5).csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/draw/res/res(3with1).csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="/draw/res/res(3with3).csv">
           <value>
             <Attribute>
@@ -45,7 +66,63 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="/draw/res/res(3with5).csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/draw/res/res(5with12).csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/draw/res/res(5with3).csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/draw/res/res(5with5).csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="/draw/res/select_only_2.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/draw/res/select_with_1.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/draw/res/select_with_3.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/draw/res_single/res(3with1).csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/draw/res_single/res(3with3).csv">
           <value>
             <Attribute>
               <option name="separator" value="," />
@@ -74,6 +151,13 @@
           </value>
         </entry>
         <entry key="/logs_example/postgresql-2022-07-17_000000.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="/res/all_dbt_log(all).csv">
           <value>
             <Attribute>
               <option name="separator" value="," />

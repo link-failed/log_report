@@ -196,7 +196,7 @@ def process_all_log():
 
 
 def main():
-    # process_all_log()
+    process_all_log()
     process_this_log()
     generate_or_update_json()
 
