@@ -54,8 +54,6 @@ name_list = []
 duration_list = []
 query_list, whole_duration = get_queries()
 
-print(query_list)
-
 for query in query_list:
     name_list.append(query["query_name"])
     thread_list.append(query["thread_name"])
@@ -96,7 +94,6 @@ gnt.set_ylabel('Threads')
 c_dict = {}
 
 for i in range(len(name_list)):
-    print(i)
     c_dict[name_list[i]] = color_set[i]
 
 legend_elements = [Patch(facecolor=c_dict[i], label=i) for i in c_dict]
@@ -111,7 +108,6 @@ gnt.grid(axis='x')
 for i in query_list:
     model_name = i["query_name"]
     if model_name != 'code_status' and model_name != 'echo_data':
-        # print("model: " + str(i))
         gnt.broken_barh([(i["start_seconds"], i["duration"].total_seconds())], (int(i["thread_name"][7:]) * 10, 8),
                         facecolors=get_color(model_name))
 

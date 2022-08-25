@@ -50,4 +50,4 @@ def log_info_for_table():
         return record_dict_list
 
 
-log_info_for_table()
+# log_info_for_table()

@@ -1,10 +1,12 @@
 from flask import Flask, render_template, request
 from get_log_table_info import log_info_for_table
+from pg_stat.find_stat import get_index_info
 import json
 import matplotlib.pyplot as plt
 
 app = Flask(__name__)
 items = log_info_for_table()
+index_info = get_index_info()
 
 
 def draw_bar_from_json(json_file, model_name):
@@ -57,6 +59,12 @@ def get_fig():
 def index():
     records = items
     return render_template('query_log.html', title='Query Log', records=records, bar=get_bar())
+
+
+@app.route('/index_info')
+def show_index_info():
+    records = index_info
+    return render_template('index_info.html', title='Index Optimization', records=records)
 
 
 if __name__ == '__main__':

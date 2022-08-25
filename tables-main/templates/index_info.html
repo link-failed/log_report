@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <br>
+<!--  <ul class="nav nav-pills">-->
+<!--    <li class="nav-item">-->
+<!--    <li role="presentation" class="active"><a href="#">Query Report</a></li>-->
+<!--    <li role="presentation"><a href="/index_info">Optimization</a></li>-->
+<!--&lt;!&ndash;        <li role="presentation"><a href="#">Messages</a></li>&ndash;&gt;-->
+<!--  </ul>-->
+  <table id="data" class="table table-striped">
+    <thead>
+      <tr>
+        <th>table</th>
+        <th>table_size</th>
+        <th>index</th>
+        <th>index_size</th>
+        <th>scans_count</th>
+        <th>reads_index_count</th>
+        <th>reads_seq_count</th>
+        <th>table_reads_count</th>
+        <th>table_writes_count</th>
+        <th>info</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for record in records %}
+        <tr>
+          <td>{{ record.table }}</td>
+          <td>{{ record.table_size }}</td>
+          <td>{{ record.index }}</td>
+          <td>{{ record.index_size }}</td>
+          <td>{{ record.scans_count }}</td>
+          <td>{{ record.reads_index_count }}</td>
+          <td>{{ record.reads_seq_count }}</td>
+          <td>{{ record.table_reads_count }}</td>
+          <td>{{ record.table_writes_count }}</td>
+          <td align="center">
+            {% if record.scans_count == 0 %}
+              <a data-toggle="popover" data-container="body" data-content="unused index">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="red" class="bi bi-exclamation-circle" viewBox="0 0 16 16">
+                  <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
+                  <path d="M7.002 11a1 1 0 1 1 2 0 1 1 0 0 1-2 0zM7.1 4.995a.905.905 0 1 1 1.8 0l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 4.995z"/>
+                </svg>
+              </a>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    $(document).ready(function () {
+      $('[data-toggle="popover"]').popover();
+      $('#data').DataTable({
+        columns: [
+          null,
+          {searchable: false},
+          null,
+          {searchable: false},
+          {searchable: false},
+          {searchable: false},
+          {searchable: false},
+          {searchable: false},
+          {searchable: false}
+        ]
+      });
+    });
+  </script>
+{% endblock %}
